@@ -13,9 +13,17 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Coach Hand IA" />
   <meta name="mobile-web-app-capable" content="yes" />
-  <link rel="stylesheet" href="./app.css" />
+  <style>
+    html,body{margin:0;background:#f6f8fb;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
+    #app,#pwaInstallBar{visibility:hidden}
+    .chi-css-ready #app,.chi-css-ready #pwaInstallBar{visibility:visible}
+    #bootScreen{position:fixed;inset:0;z-index:999999;display:grid;place-items:center;text-align:center;background:#071a2f;color:white;padding:24px}
+    #bootScreen strong{font-size:25px}#bootScreen small{display:block;margin-top:8px;color:#c7d7e7;line-height:1.5}
+    .bootDot{width:38px;height:38px;border-radius:50%;border:4px solid rgba(255,255,255,.22);border-top-color:#f47a20;animation:spin .8s linear infinite;margin:0 auto 16px}
+    @keyframes spin{to{transform:rotate(360deg)}}
+  </style>
 </head>
-<body>
+<body><div id="bootScreen"><div><div class="bootDot"></div><strong>Coach Hand IA</strong><small>Chargement de ton espace coach…</small></div></div>
   <div id="app" class="app-shell">
     <header class="topbar">
       <button class="brand" data-nav="home" aria-label="Accueil">
@@ -45,8 +53,6 @@
     <button id="pwaInstallBtn" type="button">Installer</button>
     <button id="pwaInstallClose" type="button" aria-label="Fermer">×</button>
   </div>
-  <script src="./app-1.js"></script>
-  <script src="./app-2.js"></script>
-  <script src="./app-3.js"></script>
+  <script src="./boot.js"></script>
 </body>
 </html>
