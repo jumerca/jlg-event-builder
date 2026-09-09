@@ -1,26 +1,20 @@
 {
   "name": "Coach Hand IA",
   "short_name": "Coach Hand",
+  "id": "/jlg-event-builder/coach-hand-ia/",
   "description": "Assistant intelligent de séance, tactique et suivi pour entraîneurs de handball.",
   "lang": "fr-FR",
-  "start_url": "./",
-  "scope": "./",
+  "start_url": "/jlg-event-builder/coach-hand-ia/?source=pwa",
+  "scope": "/jlg-event-builder/coach-hand-ia/",
   "display": "standalone",
-  "display_override": [
-    "window-controls-overlay",
-    "standalone"
-  ],
   "orientation": "any",
-  "background_color": "#071a2f",
-  "theme_color": "#0b2a4a",
-  "categories": [
-    "sports",
-    "productivity",
-    "education"
-  ],
+  "background_color": "#081f36",
+  "theme_color": "#081f36",
+  "categories": ["sports", "productivity", "education"],
+  "prefer_related_applications": false,
   "icons": [
     {
-      "src": "./icon.svg",
+      "src": "/jlg-event-builder/coach-hand-ia/icon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any maskable"
