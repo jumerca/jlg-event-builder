@@ -23,51 +23,42 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
       - name: Setup Pages
         uses: actions/configure-pages@v5
-      - name: Build Coach Hand IA
+      - name: Build and verify Coach Hand IA
         shell: bash
         run: |
           node <<'NODE'
           const fs = require('fs');
           const zlib = require('zlib');
+          const crypto = require('crypto');
           const cp = require('child_process');
           const p = 'coach-hand-ia';
+          const read = f => fs.readFileSync(`${p}/${f}`, 'utf8').trim();
+          const hash = b => crypto.createHash('sha256').update(b).digest('hex');
 
-          function readCurrent(prefix, from, to) {
-            let s = '';
-            for (let i = from; i <= to; i++) s += fs.readFileSync(`${p}/${prefix}-${i}.txt`, 'utf8').trim();
-            return s;
+          const cssB64 = read('cssz-1.txt') + read('cssz-2.txt');
+          const css = zlib.gunzipSync(Buffer.from(cssB64, 'base64'));
+          const cssHash = hash(css);
+          if (cssHash !== '9e7b0d211fe78d89e41bda0f4fe83d5e169e32a0ba18cb8b7326c0c86fbbacb4') {
+            throw new Error(`CSS integrity check failed: ${cssHash}`);
           }
-          function gitBlob(sha) {
-            return cp.execFileSync('git', ['cat-file', 'blob', sha], {encoding:'utf8'}).trim();
-          }
-          function inflateGzipIgnoringCrc(buf) {
-            if (buf[0] !== 0x1f || buf[1] !== 0x8b) throw new Error('Invalid gzip header');
-            const flags = buf[3];
-            let pos = 10;
-            if (flags & 4) { const xlen = buf.readUInt16LE(pos); pos += 2 + xlen; }
-            if (flags & 8) { while (buf[pos++] !== 0 && pos < buf.length); }
-            if (flags & 16) { while (buf[pos++] !== 0 && pos < buf.length); }
-            if (flags & 2) pos += 2;
-            return zlib.inflateRawSync(buf.subarray(pos, buf.length - 8));
-          }
+          fs.writeFileSync(`${p}/app.css`, css);
 
-          const cssB64 = readCurrent('cssz', 1, 2);
-          fs.writeFileSync(`${p}/app.css`, zlib.gunzipSync(Buffer.from(cssB64, 'base64')));
-
-          // The first two compressed JS chunks in the working tree were mixed between two builds.
-          // Reuse the coherent historical pair, then ignore only the obsolete gzip CRC trailer.
-          const jsB64 = gitBlob('7add5b80dc00ecbe46d55dd4636b251f703d75c6')
-                      + gitBlob('2d0ee618f23a9621b23e822210011635625db8e2')
-                      + readCurrent('jsz', 3, 7);
-          fs.writeFileSync(`${p}/app.js`, inflateGzipIgnoringCrc(Buffer.from(jsB64, 'base64')));
+          const jsB64 = read('fix-js1-a.txt') + read('fix-js1-b.txt')
+                      + read('fix-js2-a.txt') + read('fix-js2-b.txt')
+                      + read('jsz-3.txt') + read('jsz-4.txt') + read('jsz-5.txt')
+                      + read('jsz-6.txt') + read('jsz-7.txt');
+          const js = zlib.gunzipSync(Buffer.from(jsB64, 'base64'));
+          const jsHash = hash(js);
+          if (jsHash !== '1954ae5ad2f557693093183ce8dacdd33e57f855635ff6a64fbc6c850b9be990') {
+            throw new Error(`JS integrity check failed: ${jsHash}`);
+          }
+          fs.writeFileSync(`${p}/app.js`, js);
           cp.execFileSync('node', ['--check', `${p}/app.js`], {stdio:'inherit'});
 
           fs.copyFileSync(`${p}/index-direct.html`, `${p}/index.html`);
-          console.log('Coach Hand IA rebuilt:', fs.statSync(`${p}/app.js`).size, 'bytes JS');
+          console.log(`Coach Hand IA verified: ${js.length} bytes JS / ${css.length} bytes CSS`);
           NODE
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v4
