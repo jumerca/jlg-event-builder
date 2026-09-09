@@ -1,33 +1,16 @@
 (async()=>{
-  const cssParts=2;
-  const jsParts=8;
-  const readParts=async(prefix,count)=>{
-    const parts=await Promise.all(Array.from({length:count},(_,i)=>
-      fetch(`./${prefix}-${i+1}.txt`,{cache:'no-cache'}).then(r=>{
-        if(!r.ok) throw new Error(`${prefix}-${i+1}: ${r.status}`);
-        return r.text();
-      })
-    ));
-    return parts.join('');
-  };
-  try{
-    const css=await readParts('css',cssParts);
-    const style=document.createElement('style');
-    style.textContent=css;
-    document.head.appendChild(style);
-    document.documentElement.classList.add('chi-css-ready');
-
-    const js=await readParts('js',jsParts);
-    const blob=new Blob([js],{type:'text/javascript'});
-    const url=URL.createObjectURL(blob);
-    const script=document.createElement('script');
-    script.src=url;
-    script.onload=()=>{URL.revokeObjectURL(url);document.getElementById('bootScreen')?.remove();};
-    script.onerror=()=>{throw new Error('Chargement du moteur impossible');};
-    document.body.appendChild(script);
-  }catch(err){
-    console.error(err);
-    const el=document.getElementById('bootScreen');
-    if(el) el.innerHTML='<strong>Coach Hand IA</strong><br><small>Impossible de charger l’application. Vérifie la connexion puis recharge.</small>';
-  }
+const J=7,C=2;
+const parts=async(p,n)=>(await Promise.all(Array.from({length:n},(_,i)=>fetch(`./${p}-${i+1}.txt`,{cache:'no-cache'}).then(r=>{if(!r.ok)throw Error(`${p} ${r.status}`);return r.text()})))).join('');
+const ungzip=async s=>{
+ const bin=Uint8Array.from(atob(s),x=>x.charCodeAt(0));
+ const stream=new Blob([bin]).stream().pipeThrough(new DecompressionStream('gzip'));
+ return new Response(stream).text();
+};
+try{
+ const css=await ungzip(await parts('cssz',C));
+ const st=document.createElement('style');st.textContent=css;document.head.appendChild(st);document.documentElement.classList.add('chi-css-ready');
+ const js=await ungzip(await parts('jsz',J));
+ const u=URL.createObjectURL(new Blob([js],{type:'text/javascript'}));
+ const s=document.createElement('script');s.src=u;s.onload=()=>{URL.revokeObjectURL(u);document.getElementById('bootScreen')?.remove()};document.body.appendChild(s);
+}catch(e){console.error(e);const x=document.getElementById('bootScreen');if(x)x.innerHTML='<strong>Coach Hand IA</strong><br><small>Impossible de charger l’application. Recharge la page.</small>'}
 })();
