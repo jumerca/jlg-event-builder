@@ -1,4 +1,4 @@
-name: Deploy JLG Event Builder to GitHub Pages
+name: Publish Coach Hand IA
 
 on:
   push:
@@ -6,25 +6,20 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
   pages: write
   id-token: write
 
 concurrency:
-  group: "pages"
-  cancel-in-progress: true
+  group: "coach-hand-publish"
+  cancel-in-progress: false
 
 jobs:
-  deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+  publish:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v6
-      - name: Setup Pages
-        uses: actions/configure-pages@v5
       - name: Build verified Coach Hand IA
         shell: bash
         run: |
@@ -47,11 +42,7 @@ jobs:
                       + read('jsz-6.txt') + read('jsz-7.txt');
           const js = zlib.gunzipSync(Buffer.from(jsB64, 'base64'));
           if (hash(js) !== '1954ae5ad2f557693093183ce8dacdd33e57f855635ff6a64fbc6c850b9be990') throw new Error('JS integrity check failed');
-          fs.writeFileSync(`${p}/app.js`, js);
-          fs.writeFileSync(`${p}/app.css`, css);
-          cp.execFileSync('node', ['--check', `${p}/app.js`], {stdio:'inherit'});
-
-          fs.copyFileSync(`${p}/index-direct.html`, `${p}/index.html`);
+          cp.execFileSync('node', ['--check', '-'], {input: js, stdio:['pipe','inherit','inherit']});
 
           let html = fs.readFileSync(`${p}/index-direct.html`, 'utf8');
           const icon = 'data:image/svg+xml;base64,' + fs.readFileSync(`${p}/icon.svg`).toString('base64');
@@ -60,7 +51,6 @@ jobs:
           jsText = jsText.replace(/<\/script/gi, '<\\/script');
           const cssText = css.toString('utf8');
 
-          // Replacement functions are intentional: a string replacement would collapse JavaScript $$ into $.
           html = html.replace('<link rel="stylesheet" href="./app.css" />', () => `<style>${cssText}</style>`);
           html = html.replace('<script src="./app.js"></script>', () => `<script>${jsText}</script>`);
           html = html.replaceAll('./icon.svg', () => icon);
@@ -71,15 +61,21 @@ jobs:
           if (!html.includes('const $$ = (s, r=document)')) throw new Error('Inline JS corruption detected');
           if (html.includes('navigator.serviceWorker.register')) throw new Error('Old service worker registration still present');
           if (html.includes('./app.js') || html.includes('./app.css') || html.includes('manifest.webmanifest')) throw new Error('Coach Hand v2 is not fully self-contained');
+          if (crypto.createHash('sha256').update(html).digest('hex') !== 'a42e1e6ddeb958da6f01697913c76e256c637cfc7681adb58e16c39760ed34fd') throw new Error('Single-file HTML integrity check failed');
 
           fs.mkdirSync('coach-hand-v2', {recursive:true});
           fs.writeFileSync('coach-hand-v2/index.html', html);
-          console.log(`Coach Hand v2 single-file verified: ${Buffer.byteLength(html)} bytes`);
+          console.log(`Coach Hand v2 verified: ${Buffer.byteLength(html)} bytes`);
           NODE
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v4
-        with:
-          path: '.'
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+      - name: Commit generated Coach Hand v2
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add coach-hand-v2/index.html
+          if git diff --cached --quiet; then
+            echo "Generated Coach Hand v2 already committed."
+          else
+            git commit -m "Publish generated Coach Hand v2"
+            git push origin HEAD:main
+          fi
