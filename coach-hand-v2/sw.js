@@ -1,4 +1,4 @@
-const CACHE='coach-hand-v2-pwa-20260909-2';
+const CACHE='coach-hand-v2-pwa-20260909-3';
 const SHELL=['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 
 self.addEventListener('install',event=>{
