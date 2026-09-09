@@ -1,0 +1,42 @@
+name: Fix Coach Hand PWA close tag
+
+on:
+  push:
+    branches: ["main"]
+    paths: [".github/workflows/pwa-fix-close.yml"]
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Fix PWA HTML
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs=require('fs');
+          const p='coach-hand-v2/index.html';
+          let h=fs.readFileSync(p,'utf8');
+          h=h.replace('<\\/script>\n</body>','</script>\n</body>');
+          h=h.replace('rel="icon" type="image/svg+xml" href="./icon-512.png"','rel="icon" type="image/png" sizes="512x512" href="./icon-512.png"');
+          if(h.includes('<\\/script>\n</body>')) throw new Error('Bad closing script tag still present');
+          if(!h.includes("navigator.serviceWorker.register('./sw.js?v=1'")) throw new Error('SW registration missing');
+          if(!h.includes('rel="manifest" href="./manifest.webmanifest?v=1"')) throw new Error('Manifest missing');
+          fs.writeFileSync(p,h);
+          console.log('PWA HTML fixed');
+          NODE
+      - name: Commit fix and remove workflow
+        shell: bash
+        run: |
+          rm -f .github/workflows/pwa-fix-close.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add coach-hand-v2/index.html .github/workflows/pwa-fix-close.yml
+          git commit -m "Fix Coach Hand PWA registration HTML"
+          git push
