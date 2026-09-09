@@ -25,7 +25,7 @@ jobs:
         uses: actions/checkout@v6
       - name: Setup Pages
         uses: actions/configure-pages@v5
-      - name: Build and verify Coach Hand IA
+      - name: Build verified Coach Hand IA
         shell: bash
         run: |
           node <<'NODE'
@@ -39,26 +39,33 @@ jobs:
 
           const cssB64 = read('cssz-1.txt') + read('cssz-2.txt');
           const css = zlib.gunzipSync(Buffer.from(cssB64, 'base64'));
-          const cssHash = hash(css);
-          if (cssHash !== '9e7b0d211fe78d89e41bda0f4fe83d5e169e32a0ba18cb8b7326c0c86fbbacb4') {
-            throw new Error(`CSS integrity check failed: ${cssHash}`);
-          }
-          fs.writeFileSync(`${p}/app.css`, css);
+          if (hash(css) !== '9e7b0d211fe78d89e41bda0f4fe83d5e169e32a0ba18cb8b7326c0c86fbbacb4') throw new Error('CSS integrity check failed');
 
           const jsB64 = read('fix-js1-a.txt') + read('fix-js1-b.txt')
                       + read('fix-js2-a.txt') + read('fix-js2-b.txt')
                       + read('jsz-3.txt') + read('jsz-4.txt') + read('jsz-5.txt')
                       + read('jsz-6.txt') + read('jsz-7.txt');
           const js = zlib.gunzipSync(Buffer.from(jsB64, 'base64'));
-          const jsHash = hash(js);
-          if (jsHash !== '1954ae5ad2f557693093183ce8dacdd33e57f855635ff6a64fbc6c850b9be990') {
-            throw new Error(`JS integrity check failed: ${jsHash}`);
-          }
+          if (hash(js) !== '1954ae5ad2f557693093183ce8dacdd33e57f855635ff6a64fbc6c850b9be990') throw new Error('JS integrity check failed');
           fs.writeFileSync(`${p}/app.js`, js);
+          fs.writeFileSync(`${p}/app.css`, css);
           cp.execFileSync('node', ['--check', `${p}/app.js`], {stdio:'inherit'});
 
+          // Keep the old path build, but publish a brand-new cache-free URL too.
           fs.copyFileSync(`${p}/index-direct.html`, `${p}/index.html`);
-          console.log(`Coach Hand IA verified: ${js.length} bytes JS / ${css.length} bytes CSS`);
+
+          let html = fs.readFileSync(`${p}/index-direct.html`, 'utf8');
+          const icon = 'data:image/svg+xml;base64,' + fs.readFileSync(`${p}/icon.svg`).toString('base64');
+          html = html.replace('<link rel="stylesheet" href="./app.css" />', `<style>${css.toString('utf8')}</style>`);
+          html = html.replace('<script src="./app.js"></script>', `<script>${js.toString('utf8')}</script>`);
+          html = html.replaceAll('./icon.svg', icon);
+          html = html.replace('  <link rel="manifest" href="./manifest.webmanifest" />\n', '');
+          html = html.replace("      if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js',{scope:'./'}).catch(console.warn));}\n", '');
+          html = html.replace('</body>', `<script>(function(){try{if('serviceWorker' in navigator){navigator.serviceWorker.getRegistrations().then(rs=>rs.forEach(r=>{if(r.scope.includes('/jlg-event-builder/'))r.unregister().catch(()=>{})}));}if('caches' in window){caches.keys().then(keys=>Promise.all(keys.filter(k=>k.includes('coach-hand')||k.includes('jlg-event-builder')).map(k=>caches.delete(k))));}}catch(e){}})();</script></body>`);
+
+          fs.mkdirSync('coach-hand-v2', {recursive:true});
+          fs.writeFileSync('coach-hand-v2/index.html', html);
+          console.log(`Coach Hand v2 single-file ready: ${Buffer.byteLength(html)} bytes`);
           NODE
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v4
