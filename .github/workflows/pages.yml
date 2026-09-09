@@ -25,6 +25,23 @@ jobs:
         uses: actions/checkout@v6
       - name: Setup Pages
         uses: actions/configure-pages@v5
+      - name: Build Coach Hand IA
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const zlib = require('zlib');
+          const p = 'coach-hand-ia';
+          function rebuild(prefix, count) {
+            let b64 = '';
+            for (let i = 1; i <= count; i++) b64 += fs.readFileSync(`${p}/${prefix}-${i}.txt`, 'utf8').trim();
+            return zlib.gunzipSync(Buffer.from(b64, 'base64'));
+          }
+          fs.writeFileSync(`${p}/app.css`, rebuild('cssz', 2));
+          fs.writeFileSync(`${p}/app.js`, rebuild('jsz', 7));
+          fs.copyFileSync(`${p}/index-direct.html`, `${p}/index.html`);
+          console.log('Coach Hand IA rebuilt:', fs.statSync(`${p}/app.js`).size, 'bytes JS');
+          NODE
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v4
         with:
