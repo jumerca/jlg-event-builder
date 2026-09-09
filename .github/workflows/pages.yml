@@ -51,13 +51,15 @@ jobs:
           fs.writeFileSync(`${p}/app.css`, css);
           cp.execFileSync('node', ['--check', `${p}/app.js`], {stdio:'inherit'});
 
-          // Keep the old path build, but publish a brand-new cache-free URL too.
           fs.copyFileSync(`${p}/index-direct.html`, `${p}/index.html`);
 
           let html = fs.readFileSync(`${p}/index-direct.html`, 'utf8');
           const icon = 'data:image/svg+xml;base64,' + fs.readFileSync(`${p}/icon.svg`).toString('base64');
+          let jsText = js.toString('utf8');
+          jsText = jsText.replace("navigator.serviceWorker.register('./sw.js', {scope:'./'}).catch(() => {});", '');
+          jsText = jsText.replace(/<\/script/gi, '<\\/script');
           html = html.replace('<link rel="stylesheet" href="./app.css" />', `<style>${css.toString('utf8')}</style>`);
-          html = html.replace('<script src="./app.js"></script>', `<script>${js.toString('utf8')}</script>`);
+          html = html.replace('<script src="./app.js"></script>', `<script>${jsText}</script>`);
           html = html.replaceAll('./icon.svg', icon);
           html = html.replace('  <link rel="manifest" href="./manifest.webmanifest" />\n', '');
           html = html.replace("      if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js',{scope:'./'}).catch(console.warn));}\n", '');
