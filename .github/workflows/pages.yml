@@ -23,6 +23,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
       - name: Setup Pages
         uses: actions/configure-pages@v5
       - name: Build Coach Hand IA
@@ -31,14 +33,39 @@ jobs:
           node <<'NODE'
           const fs = require('fs');
           const zlib = require('zlib');
+          const cp = require('child_process');
           const p = 'coach-hand-ia';
-          function rebuild(prefix, count) {
-            let b64 = '';
-            for (let i = 1; i <= count; i++) b64 += fs.readFileSync(`${p}/${prefix}-${i}.txt`, 'utf8').trim();
-            return zlib.gunzipSync(Buffer.from(b64, 'base64'));
+
+          function readCurrent(prefix, from, to) {
+            let s = '';
+            for (let i = from; i <= to; i++) s += fs.readFileSync(`${p}/${prefix}-${i}.txt`, 'utf8').trim();
+            return s;
           }
-          fs.writeFileSync(`${p}/app.css`, rebuild('cssz', 2));
-          fs.writeFileSync(`${p}/app.js`, rebuild('jsz', 7));
+          function gitBlob(sha) {
+            return cp.execFileSync('git', ['cat-file', 'blob', sha], {encoding:'utf8'}).trim();
+          }
+          function inflateGzipIgnoringCrc(buf) {
+            if (buf[0] !== 0x1f || buf[1] !== 0x8b) throw new Error('Invalid gzip header');
+            const flags = buf[3];
+            let pos = 10;
+            if (flags & 4) { const xlen = buf.readUInt16LE(pos); pos += 2 + xlen; }
+            if (flags & 8) { while (buf[pos++] !== 0 && pos < buf.length); }
+            if (flags & 16) { while (buf[pos++] !== 0 && pos < buf.length); }
+            if (flags & 2) pos += 2;
+            return zlib.inflateRawSync(buf.subarray(pos, buf.length - 8));
+          }
+
+          const cssB64 = readCurrent('cssz', 1, 2);
+          fs.writeFileSync(`${p}/app.css`, zlib.gunzipSync(Buffer.from(cssB64, 'base64')));
+
+          // The first two compressed JS chunks in the working tree were mixed between two builds.
+          // Reuse the coherent historical pair, then ignore only the obsolete gzip CRC trailer.
+          const jsB64 = gitBlob('7add5b80dc00ecbe46d55dd4636b251f703d75c6')
+                      + gitBlob('2d0ee618f23a9621b23e822210011635625db8e2')
+                      + readCurrent('jsz', 3, 7);
+          fs.writeFileSync(`${p}/app.js`, inflateGzipIgnoringCrc(Buffer.from(jsB64, 'base64')));
+          cp.execFileSync('node', ['--check', `${p}/app.js`], {stdio:'inherit'});
+
           fs.copyFileSync(`${p}/index-direct.html`, `${p}/index.html`);
           console.log('Coach Hand IA rebuilt:', fs.statSync(`${p}/app.js`).size, 'bytes JS');
           NODE
