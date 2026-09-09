@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0b2a4a" />
+  <meta name="description" content="Coach Hand IA — assistant de séance pour entraîneurs de handball" />
+  <title>Coach Hand IA</title>
+  <link rel="icon" type="image/svg+xml" href="./icon.svg" />
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="./icon.svg" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Coach Hand IA" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <link rel="stylesheet" href="./app.css" />
+</head>
+<body>
+  <div id="app" class="app-shell">
+    <header class="topbar">
+      <button class="brand" data-nav="home" aria-label="Accueil">
+        <span class="brand-mark"><img class="brand-logo" src="./icon.svg" alt="" /></span>
+        <span><strong>Coach Hand</strong><em>IA</em></span>
+      </button>
+      <div class="top-actions">
+        <button class="cloud-pill" data-nav="account" id="cloudPill" aria-label="Compte et synchronisation"><span class="cloud-dot offline" id="cloudDot"></span><span id="cloudPillText">Hors ligne</span></button>
+        <button class="icon-btn" id="installBtn" hidden aria-label="Installer l'application">⬇</button>
+      </div>
+    </header>
+    <main id="view"></main>
+    <nav class="bottom-nav" aria-label="Navigation principale">
+      <button data-nav="home" class="nav-item active"><span>⌂</span><small>Accueil</small></button>
+      <button data-nav="generator" class="nav-item"><span>✦</span><small>Créer</small></button>
+      <button data-nav="library" class="nav-item"><span>▦</span><small>Exercices</small></button>
+      <button data-nav="season" class="nav-item"><span>◫</span><small>Saison</small></button>
+      <button data-nav="tactics" class="nav-item"><span>⌁</span><small>Tactique</small></button>
+    </nav>
+  </div>
+  <div id="pwaInstallBar" aria-live="polite">
+    <img src="./icon.svg" alt="">
+    <div class="pwa-copy">
+      <div class="pwa-title">Installer Coach Hand IA</div>
+      <div class="pwa-sub">Plein écran · accès rapide · fonctionne aussi hors ligne</div>
+    </div>
+    <button id="pwaInstallBtn" type="button">Installer</button>
+    <button id="pwaInstallClose" type="button" aria-label="Fermer">×</button>
+  </div>
+  <script src="./app-1.js"></script>
+  <script src="./app-2.js"></script>
+  <script src="./app-3.js"></script>
+</body>
+</html>
