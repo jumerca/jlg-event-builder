@@ -1,0 +1,53 @@
+name: Build Rugby Legacy APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - rugby-legacy-apk-build
+    paths:
+      - 'rugby-legacy-android/**'
+      - '.github/workflows/rugby-legacy-apk.yml'
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android platform
+        run: yes | sdkmanager 'platforms;android-35' 'build-tools;35.0.0' >/dev/null
+
+      - name: Unpack Rugby Legacy web app
+        run: |
+          mkdir -p rugby-legacy-android/app/src/main/assets/www
+          unzip -q rugby-legacy-android/web-bundle.zip -d rugby-legacy-android/app/src/main/assets/www
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Build debug APK
+        run: gradle -p rugby-legacy-android :app:assembleDebug --stacktrace
+
+      - name: Rename APK
+        run: cp rugby-legacy-android/app/build/outputs/apk/debug/app-debug.apk Rugby-Legacy-v0.3.apk
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Rugby-Legacy-Android-APK
+          path: Rugby-Legacy-v0.3.apk
+          retention-days: 7
