@@ -27,13 +27,31 @@ jobs:
         uses: android-actions/setup-android@v3
       - name: Install Android platform
         run: yes | sdkmanager 'platforms;android-35' 'build-tools;35.0.0' >/dev/null
-      - name: Rebuild and verify Rugby Legacy web bundle
+      - name: Rebuild verified Rugby Legacy base bundle
         run: |
           cat rugby-legacy-android/wp-00 rugby-legacy-android/wp-01 rugby-legacy-android/wp-02 rugby-legacy-android/wp-03 rugby-legacy-android/wp-04 rugby-legacy-android/wp-05 rugby-legacy-android/wp-06 rugby-legacy-android/wp-07 > rugby-legacy-android/web-bundle-fixed.zip
           test "$(stat -c%s rugby-legacy-android/web-bundle-fixed.zip)" = "21731"
           unzip -t rugby-legacy-android/web-bundle-fixed.zip
-          mkdir -p rugby-legacy-android/app/src/main/assets/www
+          rm -rf rugby-legacy-android/app/src/main/assets/www
+          mkdir -p rugby-legacy-android/app/src/main/assets/www/icons
           unzip -q rugby-legacy-android/web-bundle-fixed.zip -d rugby-legacy-android/app/src/main/assets/www
+      - name: Apply Rugby Legacy v0.4 upgrade
+        run: |
+          cp rugby-legacy-android/upgrade-v04.js rugby-legacy-android/app/src/main/assets/www/upgrade-v04.js
+          cp rugby-legacy-android/upgrade-v04.css rugby-legacy-android/app/src/main/assets/www/upgrade-v04.css
+          cp rugby-legacy-android/brand-logo.svg rugby-legacy-android/app/src/main/assets/www/icons/brand-logo.svg
+          cp rugby-legacy-android/mark.svg rugby-legacy-android/app/src/main/assets/www/icons/mark.svg
+          cp rugby-legacy-android/mark.svg rugby-legacy-android/app/src/main/assets/www/icons/icon.svg
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('rugby-legacy-android/app/src/main/assets/www/index.html')
+          s=p.read_text()
+          s=s.replace('<link rel="stylesheet" href="styles.css"/>','<link rel="stylesheet" href="styles.css"/>\n  <link rel="stylesheet" href="upgrade-v04.css"/>')
+          s=s.replace('<script src="app.js"></script>','<script src="app.js"></script>\n  <script src="upgrade-v04.js"></script>')
+          s=s.replace('icons/icon.svg','icons/mark.svg')
+          p.write_text(s)
+          PY
+          node --check rugby-legacy-android/app/src/main/assets/www/upgrade-v04.js
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
@@ -41,11 +59,11 @@ jobs:
       - name: Build debug APK
         run: gradle -p rugby-legacy-android :app:assembleDebug --stacktrace
       - name: Rename APK
-        run: cp rugby-legacy-android/app/build/outputs/apk/debug/app-debug.apk Rugby-Legacy-v0.3.apk
+        run: cp rugby-legacy-android/app/build/outputs/apk/debug/app-debug.apk Rugby-Legacy-v0.4.apk
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Rugby-Legacy-Android-APK
-          path: Rugby-Legacy-v0.3.apk
+          name: Rugby-Legacy-Android-APK-v04
+          path: Rugby-Legacy-v0.4.apk
           if-no-files-found: error
           retention-days: 7

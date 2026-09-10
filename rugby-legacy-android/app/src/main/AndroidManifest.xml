@@ -3,8 +3,8 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <application
         android:allowBackup="true"
-        android:icon="@drawable/rugby_legacy_logo"
-        android:roundIcon="@drawable/rugby_legacy_logo"
+        android:icon="@drawable/rugby_legacy_mark"
+        android:roundIcon="@drawable/rugby_legacy_mark"
         android:label="Rugby Legacy"
         android:supportsRtl="true"
         android:theme="@style/Theme.RugbyLegacy">

@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 560">
+<defs>
+ <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#050b0a"/><stop offset=".6" stop-color="#0b1712"/><stop offset="1" stop-color="#020605"/></linearGradient>
+ <linearGradient id="silver" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#fff"/><stop offset=".28" stop-color="#b8bdba"/><stop offset=".55" stop-color="#f4f0e6"/><stop offset="1" stop-color="#747b78"/></linearGradient>
+ <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#f7e39b"/><stop offset=".42" stop-color="#d0a94f"/><stop offset="1" stop-color="#7f5c20"/></linearGradient>
+ <filter id="glow"><feGaussianBlur stdDeviation="8" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+</defs>
+<rect width="760" height="560" rx="72" fill="url(#bg)"/>
+<g transform="translate(95 45)" filter="url(#glow)">
+ <path d="M40 15H315c50 0 88 28 88 72 0 52-39 83-100 83H178L84 322H4L139 99h168c18 0 27-8 27-21 0-12-10-19-29-19H63Z" fill="url(#silver)"/>
+ <path d="M154 130 58 325h68l92-145 111 145h92L261 129Z" fill="url(#gold)"/>
+ <g transform="rotate(-18 260 210)">
+  <ellipse cx="262" cy="211" rx="101" ry="53" fill="#f2eee2" stroke="#0c1110" stroke-width="13"/>
+  <path d="M177 204c52 10 112 10 170 0" fill="none" stroke="#a78641" stroke-width="5"/>
+  <path d="M252 183v56m-19-43 40 8m-41 8 40 8m-37 9 36 7" stroke="#111" stroke-width="6" stroke-linecap="round"/>
+ </g>
+</g>
+<text x="380" y="410" text-anchor="middle" font-family="Arial Black,Arial,sans-serif" font-size="76" font-weight="900" font-style="italic" fill="url(#silver)" letter-spacing="2">RUGBY</text>
+<text x="380" y="474" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="37" font-weight="700" fill="url(#gold)" letter-spacing="18">LEGACY</text>
+<path d="M205 505H555" stroke="#c79d47" stroke-width="2" opacity=".65"/>
+<text x="380" y="538" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="13" fill="#e5ded0" letter-spacing="4">DIRIGEZ • CONSTRUISEZ • ÉCRIVEZ LA LÉGENDE</text>
+</svg>
