@@ -11,6 +11,7 @@ on:
       - 'rl-v07/**'
       - 'rl-v08/**'
       - 'rl-v09/**'
+      - 'rl-v10/**'
       - '.github/workflows/rugby-legacy-apk.yml'
 
 permissions:
@@ -64,9 +65,7 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
           p=Path('rugby-legacy-android/app/src/main/assets/www/index.html')
-          s=p.read_text()
-          s=s.replace('</head>','  <link rel="stylesheet" href="upgrade-v05.css"/>\n</head>')
-          s=s.replace('</body>','  <script src="upgrade-v05.js"></script>\n</body>')
+          s=p.read_text().replace('</head>','  <link rel="stylesheet" href="upgrade-v05.css"/>\n</head>').replace('</body>','  <script src="upgrade-v05.js"></script>\n</body>')
           p.write_text(s)
           PY
           node --check rugby-legacy-android/app/src/main/assets/www/upgrade-v05.js
@@ -78,9 +77,7 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
           p=Path('rugby-legacy-android/app/src/main/assets/www/index.html')
-          s=p.read_text()
-          s=s.replace('</head>','  <link rel="stylesheet" href="upgrade-v06.css"/>\n</head>')
-          s=s.replace('</body>','  <script src="upgrade-v06.js"></script>\n</body>')
+          s=p.read_text().replace('</head>','  <link rel="stylesheet" href="upgrade-v06.css"/>\n</head>').replace('</body>','  <script src="upgrade-v06.js"></script>\n</body>')
           p.write_text(s)
           PY
           node --check rugby-legacy-android/app/src/main/assets/www/upgrade-v06.js
@@ -92,9 +89,7 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
           p=Path('rugby-legacy-android/app/src/main/assets/www/index.html')
-          s=p.read_text()
-          s=s.replace('</head>','  <link rel="stylesheet" href="upgrade-v07.css"/>\n</head>')
-          s=s.replace('</body>','  <script src="upgrade-v07.js"></script>\n</body>')
+          s=p.read_text().replace('</head>','  <link rel="stylesheet" href="upgrade-v07.css"/>\n</head>').replace('</body>','  <script src="upgrade-v07.js"></script>\n</body>')
           p.write_text(s)
           PY
           node --check rugby-legacy-android/app/src/main/assets/www/upgrade-v07.js
@@ -106,9 +101,7 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
           p=Path('rugby-legacy-android/app/src/main/assets/www/index.html')
-          s=p.read_text()
-          s=s.replace('</head>','  <link rel="stylesheet" href="upgrade-v08.css"/>\n</head>')
-          s=s.replace('</body>','  <script src="upgrade-v08.js"></script>\n</body>')
+          s=p.read_text().replace('</head>','  <link rel="stylesheet" href="upgrade-v08.css"/>\n</head>').replace('</body>','  <script src="upgrade-v08.js"></script>\n</body>')
           p.write_text(s)
           PY
           node --check rugby-legacy-android/app/src/main/assets/www/upgrade-v08.js
@@ -120,13 +113,23 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
           p=Path('rugby-legacy-android/app/src/main/assets/www/index.html')
-          s=p.read_text()
-          s=s.replace('</head>','  <link rel="stylesheet" href="upgrade-v09.css"/>\n</head>')
-          s=s.replace('</body>','  <script src="upgrade-v09.js"></script>\n</body>')
+          s=p.read_text().replace('</head>','  <link rel="stylesheet" href="upgrade-v09.css"/>\n</head>').replace('</body>','  <script src="upgrade-v09.js"></script>\n</body>')
           p.write_text(s)
           PY
           node --check rugby-legacy-android/app/src/main/assets/www/upgrade-v09.js
           sed -i "s/versionCode 8/versionCode 9/; s/versionName '0.8'/versionName '0.9'/" rugby-legacy-android/app/build.gradle
+      - name: Apply Rugby Legacy v1.0 multi-system PRM overhaul
+        run: |
+          cp rl-v10/upgrade-v10.js rugby-legacy-android/app/src/main/assets/www/upgrade-v10.js
+          cp rl-v10/upgrade-v10.css rugby-legacy-android/app/src/main/assets/www/upgrade-v10.css
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('rugby-legacy-android/app/src/main/assets/www/index.html')
+          s=p.read_text().replace('</head>','  <link rel="stylesheet" href="upgrade-v10.css"/>\n</head>').replace('</body>','  <script src="upgrade-v10.js"></script>\n</body>')
+          p.write_text(s)
+          PY
+          node --check rugby-legacy-android/app/src/main/assets/www/upgrade-v10.js
+          sed -i "s/versionCode 9/versionCode 10/; s/versionName '0.9'/versionName '1.0'/" rugby-legacy-android/app/build.gradle
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
@@ -134,11 +137,11 @@ jobs:
       - name: Build debug APK
         run: gradle -p rugby-legacy-android :app:assembleDebug --stacktrace
       - name: Rename APK
-        run: cp rugby-legacy-android/app/build/outputs/apk/debug/app-debug.apk Rugby-Legacy-v0.9.apk
+        run: cp rugby-legacy-android/app/build/outputs/apk/debug/app-debug.apk Rugby-Legacy-v1.0.apk
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Rugby-Legacy-Android-APK-v09
-          path: Rugby-Legacy-v0.9.apk
+          name: Rugby-Legacy-Android-APK-v10
+          path: Rugby-Legacy-v1.0.apk
           if-no-files-found: error
           retention-days: 7
