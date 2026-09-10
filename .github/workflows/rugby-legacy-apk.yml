@@ -10,6 +10,7 @@ on:
       - 'rl-v06/**'
       - 'rl-v07/**'
       - 'rl-v08/**'
+      - 'rl-v09/**'
       - '.github/workflows/rugby-legacy-apk.yml'
 
 permissions:
@@ -112,6 +113,20 @@ jobs:
           PY
           node --check rugby-legacy-android/app/src/main/assets/www/upgrade-v08.js
           sed -i "s/versionCode 7/versionCode 8/; s/versionName '0.7'/versionName '0.8'/" rugby-legacy-android/app/build.gradle
+      - name: Apply Rugby Legacy v0.9 continuous choreography
+        run: |
+          cp rl-v09/upgrade-v09.js rugby-legacy-android/app/src/main/assets/www/upgrade-v09.js
+          cp rl-v09/upgrade-v09.css rugby-legacy-android/app/src/main/assets/www/upgrade-v09.css
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('rugby-legacy-android/app/src/main/assets/www/index.html')
+          s=p.read_text()
+          s=s.replace('</head>','  <link rel="stylesheet" href="upgrade-v09.css"/>\n</head>')
+          s=s.replace('</body>','  <script src="upgrade-v09.js"></script>\n</body>')
+          p.write_text(s)
+          PY
+          node --check rugby-legacy-android/app/src/main/assets/www/upgrade-v09.js
+          sed -i "s/versionCode 8/versionCode 9/; s/versionName '0.8'/versionName '0.9'/" rugby-legacy-android/app/build.gradle
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
@@ -119,11 +134,11 @@ jobs:
       - name: Build debug APK
         run: gradle -p rugby-legacy-android :app:assembleDebug --stacktrace
       - name: Rename APK
-        run: cp rugby-legacy-android/app/build/outputs/apk/debug/app-debug.apk Rugby-Legacy-v0.8.apk
+        run: cp rugby-legacy-android/app/build/outputs/apk/debug/app-debug.apk Rugby-Legacy-v0.9.apk
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Rugby-Legacy-Android-APK-v08
-          path: Rugby-Legacy-v0.8.apk
+          name: Rugby-Legacy-Android-APK-v09
+          path: Rugby-Legacy-v0.9.apk
           if-no-files-found: error
           retention-days: 7
