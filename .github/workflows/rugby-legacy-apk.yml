@@ -4,10 +4,13 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - rugby-legacy-apk-build
+      - main
     paths:
       - 'rugby-legacy-android/**'
       - '.github/workflows/rugby-legacy-apk.yml'
+
+permissions:
+  contents: read
 
 jobs:
   build-apk:
@@ -50,4 +53,5 @@ jobs:
         with:
           name: Rugby-Legacy-Android-APK
           path: Rugby-Legacy-v0.3.apk
+          if-no-files-found: error
           retention-days: 7
