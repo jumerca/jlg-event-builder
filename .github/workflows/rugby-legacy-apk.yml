@@ -29,7 +29,8 @@ jobs:
         run: yes | sdkmanager 'platforms;android-35' 'build-tools;35.0.0' >/dev/null
       - name: Rebuild and verify Rugby Legacy web bundle
         run: |
-          cat rugby-legacy-android/webpart-00 rugby-legacy-android/webpart-01 rugby-legacy-android/webpart-02 rugby-legacy-android/webpart-03 > rugby-legacy-android/web-bundle-fixed.zip
+          cat rugby-legacy-android/wp-00 rugby-legacy-android/wp-01 rugby-legacy-android/wp-02 rugby-legacy-android/wp-03 rugby-legacy-android/wp-04 rugby-legacy-android/wp-05 rugby-legacy-android/wp-06 rugby-legacy-android/wp-07 > rugby-legacy-android/web-bundle-fixed.zip
+          test "$(stat -c%s rugby-legacy-android/web-bundle-fixed.zip)" = "21731"
           unzip -t rugby-legacy-android/web-bundle-fixed.zip
           mkdir -p rugby-legacy-android/app/src/main/assets/www
           unzip -q rugby-legacy-android/web-bundle-fixed.zip -d rugby-legacy-android/app/src/main/assets/www
