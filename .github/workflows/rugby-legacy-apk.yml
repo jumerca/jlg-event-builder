@@ -35,7 +35,7 @@ jobs:
           rm -rf rugby-legacy-android/app/src/main/assets/www
           mkdir -p rugby-legacy-android/app/src/main/assets/www/icons
           unzip -q rugby-legacy-android/web-bundle-fixed.zip -d rugby-legacy-android/app/src/main/assets/www
-      - name: Apply Rugby Legacy v0.4 upgrade
+      - name: Apply Rugby Legacy v0.4 base upgrade
         run: |
           cp rugby-legacy-android/upgrade-v04.js rugby-legacy-android/app/src/main/assets/www/upgrade-v04.js
           cp rugby-legacy-android/upgrade-v04.css rugby-legacy-android/app/src/main/assets/www/upgrade-v04.css
@@ -52,6 +52,20 @@ jobs:
           p.write_text(s)
           PY
           node --check rugby-legacy-android/app/src/main/assets/www/upgrade-v04.js
+      - name: Apply Rugby Legacy v0.5 match engine
+        run: |
+          cp rl-v05/upgrade-v05.js rugby-legacy-android/app/src/main/assets/www/upgrade-v05.js
+          cp rl-v05/upgrade-v05.css rugby-legacy-android/app/src/main/assets/www/upgrade-v05.css
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('rugby-legacy-android/app/src/main/assets/www/index.html')
+          s=p.read_text()
+          s=s.replace('</head>','  <link rel="stylesheet" href="upgrade-v05.css"/>\n</head>')
+          s=s.replace('</body>','  <script src="upgrade-v05.js"></script>\n</body>')
+          p.write_text(s)
+          PY
+          node --check rugby-legacy-android/app/src/main/assets/www/upgrade-v05.js
+          sed -i "s/versionCode 3/versionCode 5/; s/versionName '0.3'/versionName '0.5'/" rugby-legacy-android/app/build.gradle
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
@@ -59,11 +73,11 @@ jobs:
       - name: Build debug APK
         run: gradle -p rugby-legacy-android :app:assembleDebug --stacktrace
       - name: Rename APK
-        run: cp rugby-legacy-android/app/build/outputs/apk/debug/app-debug.apk Rugby-Legacy-v0.4.apk
+        run: cp rugby-legacy-android/app/build/outputs/apk/debug/app-debug.apk Rugby-Legacy-v0.5.apk
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Rugby-Legacy-Android-APK-v04
-          path: Rugby-Legacy-v0.4.apk
+          name: Rugby-Legacy-Android-APK-v05
+          path: Rugby-Legacy-v0.5.apk
           if-no-files-found: error
           retention-days: 7
