@@ -6,6 +6,8 @@ on:
     branches: [main]
     paths:
       - 'rugby-legacy-android/**'
+      - 'rl-v05/**'
+      - 'rl-v06/**'
       - '.github/workflows/rugby-legacy-apk.yml'
 
 permissions:
@@ -66,6 +68,20 @@ jobs:
           PY
           node --check rugby-legacy-android/app/src/main/assets/www/upgrade-v05.js
           sed -i "s/versionCode 3/versionCode 5/; s/versionName '0.3'/versionName '0.5'/" rugby-legacy-android/app/build.gradle
+      - name: Apply Rugby Legacy v0.6 visual engine
+        run: |
+          cp rl-v06/upgrade-v06.js rugby-legacy-android/app/src/main/assets/www/upgrade-v06.js
+          cp rl-v06/upgrade-v06.css rugby-legacy-android/app/src/main/assets/www/upgrade-v06.css
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('rugby-legacy-android/app/src/main/assets/www/index.html')
+          s=p.read_text()
+          s=s.replace('</head>','  <link rel="stylesheet" href="upgrade-v06.css"/>\n</head>')
+          s=s.replace('</body>','  <script src="upgrade-v06.js"></script>\n</body>')
+          p.write_text(s)
+          PY
+          node --check rugby-legacy-android/app/src/main/assets/www/upgrade-v06.js
+          sed -i "s/versionCode 5/versionCode 6/; s/versionName '0.5'/versionName '0.6'/" rugby-legacy-android/app/build.gradle
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
@@ -73,11 +89,11 @@ jobs:
       - name: Build debug APK
         run: gradle -p rugby-legacy-android :app:assembleDebug --stacktrace
       - name: Rename APK
-        run: cp rugby-legacy-android/app/build/outputs/apk/debug/app-debug.apk Rugby-Legacy-v0.5.apk
+        run: cp rugby-legacy-android/app/build/outputs/apk/debug/app-debug.apk Rugby-Legacy-v0.6.apk
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Rugby-Legacy-Android-APK-v05
-          path: Rugby-Legacy-v0.5.apk
+          name: Rugby-Legacy-Android-APK-v06
+          path: Rugby-Legacy-v0.6.apk
           if-no-files-found: error
           retention-days: 7
