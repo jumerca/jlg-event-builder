@@ -12,6 +12,7 @@ on:
       - 'rl-v08/**'
       - 'rl-v09/**'
       - 'rl-v10/**'
+      - 'rl-v11/**'
       - '.github/workflows/rugby-legacy-apk.yml'
 
 permissions:
@@ -130,6 +131,18 @@ jobs:
           PY
           node --check rugby-legacy-android/app/src/main/assets/www/upgrade-v10.js
           sed -i "s/versionCode 9/versionCode 10/; s/versionName '0.9'/versionName '1.0'/" rugby-legacy-android/app/build.gradle
+      - name: Apply Rugby Legacy v1.1 major PRM upgrade
+        run: |
+          cp rl-v11/upgrade-v11.js rugby-legacy-android/app/src/main/assets/www/upgrade-v11.js
+          cp rl-v11/upgrade-v11.css rugby-legacy-android/app/src/main/assets/www/upgrade-v11.css
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('rugby-legacy-android/app/src/main/assets/www/index.html')
+          s=p.read_text().replace('</head>','  <link rel="stylesheet" href="upgrade-v11.css"/>\n</head>').replace('</body>','  <script src="upgrade-v11.js"></script>\n</body>')
+          p.write_text(s)
+          PY
+          node --check rugby-legacy-android/app/src/main/assets/www/upgrade-v11.js
+          sed -i "s/versionCode 10/versionCode 11/; s/versionName '1.0'/versionName '1.1'/" rugby-legacy-android/app/build.gradle
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
@@ -137,11 +150,11 @@ jobs:
       - name: Build debug APK
         run: gradle -p rugby-legacy-android :app:assembleDebug --stacktrace
       - name: Rename APK
-        run: cp rugby-legacy-android/app/build/outputs/apk/debug/app-debug.apk Rugby-Legacy-v1.0.apk
+        run: cp rugby-legacy-android/app/build/outputs/apk/debug/app-debug.apk Rugby-Legacy-v1.1.apk
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Rugby-Legacy-Android-APK-v10
-          path: Rugby-Legacy-v1.0.apk
+          name: Rugby-Legacy-Android-APK-v11
+          path: Rugby-Legacy-v1.1.apk
           if-no-files-found: error
           retention-days: 7
