@@ -1,0 +1,49 @@
+name: Build Legacy Records APK
+
+on:
+  push:
+    branches: [legacy-records-apk-build]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Reconstruct Android project
+        run: |
+          cat legacy_apk_payload/part* | tr -d '\n' | base64 -d > /tmp/legacy-project.tar.xz
+          mkdir -p /tmp/legacy-build
+          tar -xJf /tmp/legacy-project.tar.xz -C /tmp/legacy-build
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK
+        run: yes | sdkmanager "platforms;android-36" "build-tools;35.0.0" || true
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.13'
+
+      - name: Prepare compatibility
+        working-directory: /tmp/legacy-build/legacy-records-android-v9
+        run: sed -i 's/minSdk 24/minSdk 26/' app/build.gradle
+
+      - name: Build APK
+        working-directory: /tmp/legacy-build/legacy-records-android-v9
+        run: gradle :app:assembleDebug --stacktrace
+
+      - name: Copy APK
+        run: cp /tmp/legacy-build/legacy-records-android-v9/app/build/outputs/apk/debug/app-debug.apk Legacy-Records-V9.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Legacy-Records-V9-APK
+          path: Legacy-Records-V9.apk
+          retention-days: 7
