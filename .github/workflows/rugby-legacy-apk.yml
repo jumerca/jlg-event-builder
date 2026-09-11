@@ -15,6 +15,7 @@ on:
       - 'rl-v11/**'
       - 'rl-v12/**'
       - 'rl-v13/**'
+      - 'rl-v14/**'
       - '.github/workflows/rugby-legacy-apk.yml'
 
 permissions:
@@ -49,7 +50,7 @@ jobs:
           mkdir -p rugby-legacy-android/app/src/main/assets/www/icons
           unzip -q rugby-legacy-android/web-bundle-fixed.zip -d rugby-legacy-android/app/src/main/assets/www
 
-      - name: Apply brand and all game upgrades through v1.3
+      - name: Apply brand and all game upgrades through v1.4
         run: |
           cp rugby-legacy-android/upgrade-v04.js rugby-legacy-android/app/src/main/assets/www/upgrade-v04.js
           cp rugby-legacy-android/upgrade-v04.css rugby-legacy-android/app/src/main/assets/www/upgrade-v04.css
@@ -68,12 +69,16 @@ jobs:
           cp rl-v13/upgrade-v13.css rugby-legacy-android/app/src/main/assets/www/upgrade-v13.css
           node --check rugby-legacy-android/app/src/main/assets/www/upgrade-v13.js
 
+          cat rl-v14/upgrade-v14.part00 rl-v14/upgrade-v14.part01 rl-v14/upgrade-v14.part02 rl-v14/upgrade-v14.part03 rl-v14/upgrade-v14.part04 rl-v14/upgrade-v14.part05 > rugby-legacy-android/app/src/main/assets/www/upgrade-v14.js
+          cp rl-v14/upgrade-v14.css rugby-legacy-android/app/src/main/assets/www/upgrade-v14.css
+          node --check rugby-legacy-android/app/src/main/assets/www/upgrade-v14.js
+
           python3 - <<'PY'
           from pathlib import Path
           p=Path('rugby-legacy-android/app/src/main/assets/www/index.html')
           s=p.read_text()
           s=s.replace('icons/icon.svg','icons/mark.svg')
-          versions=['04','05','06','07','08','09','10','11','12','13']
+          versions=['04','05','06','07','08','09','10','11','12','13','14']
           css='\n'.join(f'  <link rel="stylesheet" href="upgrade-v{v}.css"/>' for v in versions)
           js='\n'.join(f'  <script src="upgrade-v{v}.js"></script>' for v in versions)
           s=s.replace('</head>',css+'\n</head>')
@@ -86,8 +91,8 @@ jobs:
           import re
           p=Path('rugby-legacy-android/app/build.gradle')
           s=p.read_text()
-          s=re.sub(r'versionCode\s+\d+', 'versionCode 13', s)
-          s=re.sub(r"versionName\s+'[^']+'", "versionName '1.3'", s)
+          s=re.sub(r'versionCode\s+\d+', 'versionCode 14', s)
+          s=re.sub(r"versionName\s+'[^']+'", "versionName '1.4'", s)
           p.write_text(s)
           PY
 
@@ -100,12 +105,12 @@ jobs:
         run: gradle -p rugby-legacy-android :app:assembleDebug --stacktrace
 
       - name: Rename APK
-        run: cp rugby-legacy-android/app/build/outputs/apk/debug/app-debug.apk Rugby-Legacy-v1.3.apk
+        run: cp rugby-legacy-android/app/build/outputs/apk/debug/app-debug.apk Rugby-Legacy-v1.4.apk
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Rugby-Legacy-Android-APK-v13
-          path: Rugby-Legacy-v1.3.apk
+          name: Rugby-Legacy-Android-APK-v14
+          path: Rugby-Legacy-v1.4.apk
           if-no-files-found: error
           retention-days: 7
