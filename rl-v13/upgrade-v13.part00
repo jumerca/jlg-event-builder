@@ -1,0 +1,39 @@
+/* Rugby Legacy v1.3 — giant broadcast & rugby motion pass */
+(()=>{
+'use strict';
+const V='1.3.0';
+if(typeof RL_DATA!=='undefined') RL_DATA.version=V;
+if(typeof DB!=='undefined') DB.version=V;
+state.prm13Camera=state.prm13Camera||'broadcast';
+state.prm13Quality=state.prm13Quality||'cinema';
+state.prm13Fullscreen=state.prm13Fullscreen||false;
+let raf=0,lastIndex=-1,phaseStart=performance.now();
+let cam={x:50,y:50,z:1.02,vx:0,vy:0,vz:0};
+const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
+const lerp=(a,b,t)=>a+(b-a)*t;
+const smooth=t=>t*t*(3-2*t);
+const ease=t=>t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;
+const norm=s=>(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase();
+const POS=['PIL','TAL','PIL','2L','2L','3L','3L','3L','9','10','AIL','C','C','AIL','AR'];
+const COLORS={
+'Stade Toulousain':['#d71920','#111111'],'Union Bordeaux-Bègles':['#6f1d3d','#ffffff'],'Stade Rochelais':['#ffd21c','#111111'],'RC Toulon':['#d71920','#111111'],'ASM Clermont':['#f5df21','#174b9b'],'Aviron Bayonnais':['#77c5e8','#ffffff'],'Montpellier HR':['#1a4f91','#ffffff'],'Castres Olympique':['#2b6cab','#ffffff'],'Racing 92':['#8ed5ec','#ffffff'],'Stade Français Paris':['#ec8dbc','#273b8e'],'LOU Rugby':['#c7102e','#111111'],'Section Paloise':['#169b58','#ffffff'],'USA Perpignan':['#d71920','#f0d11c'],'RC Vannes':['#151515','#ffffff'],'Provence Rugby':['#111111','#d8ac49'],'Oyonnax':['#cf1f2c','#151515'],'Brive':['#111111','#ffffff'],'Montauban':['#188a50','#111111'],'Grenoble':['#d62b38','#2456a5'],'Valence Romans':['#d32835','#ffffff'],'Biarritz':['#d51f2b','#ffffff'],'Aurillac':['#d51f2b','#2f5f94'],'Dax':['#d51f2b','#ffffff'],'Nissa':['#d51f2b','#111111'],'Soyaux-Angoulême':['#6d1d58','#ffffff'],'Narbonne':['#ef6d24','#111111'],'Nevers':['#f2d31c','#22539d'],'Colomiers':['#1f68b4','#ffffff'],'Béziers':['#d52734','#2460a8'],'Agen':['#1c62a8','#ffffff']};
+function hash(s){let h=2166136261;for(const ch of String(s||'')){h^=ch.charCodeAt(0);h=Math.imul(h,16777619)}return h>>>0}
+function colors(c,home){if(COLORS[c?.name])return COLORS[c.name];let h=hash(c?.name)%360;return[`hsl(${h} 64% 42%)`,home?'#141714':'#eeeeea']}
+function currentEvent(){const m=state.match;if(!m)return null;return m.events?.[Math.max(0,(m.index||0)-1)]||{x:50,y:50,type:'COUP D\'ENVOI',home:true,text:'Coup d’envoi',m:0}}
+function nextEvent(){const m=state.match;if(!m)return null;return m.events?.[Math.min((m.events?.length||1)-1,m.index||0)]||currentEvent()}
+function fifteen(c){if(!c)return[];if(state.save&&c.id===state.save.clubId&&state.save.lineup?.length===15)return state.save.lineup.map(id=>c.players.find(p=>p.id===id)).filter(Boolean).slice(0,15);let used=new Set(),out=[];for(const pos of POS){let p=c.players.filter(x=>!used.has(x.id)&&x.pos===pos).sort((a,b)=>(b.ca||0)-(a.ca||0))[0]||c.players.filter(x=>!used.has(x.id)).sort((a,b)=>(b.ca||0)-(a.ca||0))[0];if(p){used.add(p.id);out.push(p)}}return out}
+function profile(p){const pos=p?.pos||'C',hh=p?.height||185,ww=p?.weight||95;let h=clamp(hh/185,.87,1.18),w=clamp(ww/95,.78,1.32);if(['PIL','TAL'].includes(pos))w*=1.17;else if(['2L','3L'].includes(pos))w*=1.08;else if(['9','AIL'].includes(pos))w*=.92;return{h,w,pos}}
+function duration(type){const t=norm(type);if(t.includes('MELEE'))return 6900;if(t.includes('TOUCHE'))return 6100;if(t.includes('RUCK')||t.includes('TURNOVER'))return 5900;if(t.includes('PERCUSSION'))return 5400;if(t.includes('PIED')||t.includes('DROP'))return 5000;if(t.includes('ESSAI'))return 5600;if(t.includes('PASSE'))return 5300;return 4200}
+function progress(e){return clamp((performance.now()-phaseStart)/duration(e?.type),0,1)}
+function stageName(t,p){t=norm(t);if(t.includes('PERCUSSION'))return p<.24?'PRISE D\'INTERVALLE':p<.43?'IMPACT':p<.61?'PLAQUAGE':p<.78?'CHUTE':p<.91?'SOUTIENS':'PRESENTATION';if(t.includes('RUCK')||t.includes('TURNOVER'))return p<.17?'ARRIVEE':p<.38?'NETTOYAGE':p<.58?'CONTEST':p<.76?'SECURISATION':p<.90?'9 A LA BASE':'SORTIE';if(t.includes('MELEE'))return p<.15?'MISE EN PLACE':p<.29?'LIAISON':p<.55?'POUSSEE':p<.74?'ROTATION':p<.89?'STABILISATION':'SORTIE';if(t.includes('TOUCHE'))return p<.17?'ALIGNEMENT':p<.34?'LANCER':p<.54?'LIFT':p<.69?'CAPTURE':p<.84?'DESCENTE':'LANCEMENT';if(t.includes('PASSE'))return p<.16?'FIXATION':p<.35?'9 → 10':p<.54?'10 → CENTRE':p<.72?'CENTRE → EXTERIEUR':p<.88?'ACCELERATION':'REPLACEMENT';if(t.includes('PIED')||t.includes('DROP'))return p<.20?'PREPARATION':p<.35?'FRAPPE':p<.70?'VOL':p<.88?'CHASE':'RECEPTION';if(t.includes('ESSAI'))return p<.66?'COURSE':p<.82?'PLONGEON':'APLATIR';return p<.72?'JEU COURANT':'REPLACEMENT'}
+function dir(home){return home?1:-1}
+function carrierIndex(e){const t=norm(e?.type);if(t.includes('MELEE')||t.includes('RUCK')||t.includes('TURNOVER'))return 8;if(t.includes('PIED')||t.includes('DROP'))return 9;if(t.includes('TOUCHE'))return 3;if(t.includes('PERCUSSION'))return 11;if(t.includes('ESSAI'))return 13;if(t.includes('PASSE'))return 9;return 12}
+function lineFormation(home,i,e){const bx=e?.x??50,by=e?.y??50,att=e?.home===home,d=dir(home);if(i<8){const pod=i<3?0:i<6?1:2,slot=i<3?i:i<6?i-3:i-6;let x=att?bx-d*(5+pod*4.5):bx+d*(7+pod*3.2);let y=by+(slot-1)*6.2+(pod-1)*5.4;return[x,y]}
+ if(i===8)return[bx-d*(att?5.5:-7),by+2.2];
+ const back=i-9;let x=att?bx-d*(9+back*3.7):bx+d*(8+back*2.8);let spread=[8,25,41,58,76,92][back]??50;let y=lerp(by,spread,.72);return[x,y]
+}
+function scrumShape(home,i,e,p){const bx=e?.x??50,by=e?.y??50,d=dir(home),att=e?.home===home;if(i<8){const rows=[[0,1,2],[3,4,5,6],[7]],r=rows.findIndex(a=>a.includes(i)),ix=rows[r].indexOf(i),n=rows[r].length;let side=home?-1:1;let x=bx+side*(1.3+r*1.85),y=by+(ix-(n-1)/2)*3.1;let shove=(p>.29&&p<.78)?Math.sin((p-.29)/.49*Math.PI)*1.6:0;x+=(att?d:-d)*shove;return[x,y]}
+ if(i===8){let x=bx-d*6,y=by+3;if(att&&p>.86)x+=d*(p-.86)*22;return[x,y]}
+ return[bx-d*(10+(i-9)*4.0),12+(i-9)*15.2]
+}
+function lineoutShape(home,i,e,p){const bx=e?.x??50,by=e?.y??50,d=dir(home),att=e?.home===home,edge=by<50?9:91,sg=by<50?1:-1;if(i<8)
