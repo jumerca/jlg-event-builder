@@ -1,0 +1,94 @@
+/* Rugby Legacy v1.4 — complete contracts, transfers, loans and recruitment management */
+(()=>{
+'use strict';
+const V='1.4.0';
+if(typeof RL_DATA!=='undefined') RL_DATA.version=V;
+if(typeof DB!=='undefined') DB.version=V;
+const POS=['ALL','PIL','TAL','2L','3L','9','10','C','AIL','AR','UTIL'];
+const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
+const roundK=n=>Math.max(0,Math.round(n/10000)*10000);
+const money=n=>typeof fmt==='function'?fmt(Math.round(n||0)):Math.round(n||0).toLocaleString('fr-FR')+' €';
+const E=s=>typeof esc==='function'?esc(String(s??'')):String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
+function gameDate(){
+  const base=new Date((state.save?.date||'2026-08-24')+'T12:00:00');
+  base.setDate(base.getDate()+Math.max(0,(state.save?.round||1)-1)*7);
+  return base;
+}
+function seasonEndYear(){const d=gameDate();return d.getMonth()>=6?d.getFullYear()+1:d.getFullYear()}
+function compName(id){return DB.comps[id]?.name||id}
+function clubBy(id){return state.save?.clubs?.find(c=>c.id===id)}
+function payroll(c){return (c?.players||[]).reduce((s,p)=>s+(p.salary||0)*12,0)}
+function wageBudget(c){if(!c)return 0;const cap=DB.comps[c.comp]?.salaryCap;return cap||Math.round(c.budget*(c.comp==='prod2'?.43:.48))}
+function wageRoom(c){return Math.max(0,wageBudget(c)-payroll(c))}
+function contractYears(p){return Math.max(0,(p.contract||seasonEndYear())-seasonEndYear())}
+function marketValue(p){
+  let base=Math.max(25000,Math.pow(Math.max(8,(p.ca||55)-45),2)*430);
+  const pot=1+Math.max(0,(p.potential||p.ca)-(p.ca||0))*.025;
+  const age=(p.age||26)<23?1.32:(p.age||26)<27?1.14:(p.age||26)>32?.62:(p.age||26)>29?.82:1;
+  const yrs=contractYears(p),ctr=yrs<=0?.34:yrs===1?1:yrs===2?1.22:1.38;
+  const star=(p.ca||0)>=90?1.22:(p.ca||0)>=85?1.10:1;
+  return roundK(clamp(base*pot*age*ctr*star,20000,1800000));
+}
+function askPrice(p,club){
+  const m=state.save.mgmt,listed=m.listed[p.id];
+  let v=marketValue(p),mult=listed?.price?listed.price/v:(listed?0.94:1.12);
+  if((p.contract||9999)<=seasonEndYear())mult*=.72;
+  if((p.ca||0)>=(club?.strength||70)+7)mult*=1.08;
+  return roundK(clamp(listed?.price||v*mult,0,2200000));
+}
+function salaryDemand(p,target){
+  const current=p.salary||2500,quality=Math.max(0,(p.ca||60)-65),ambition=1+quality*.006;
+  const step=target?.comp==='top14'?1.08:target?.comp==='prod2'?1.02:.97;
+  const youth=(p.age||26)<24?1.05:1;
+  return Math.max(800,Math.round(current*ambition*step*youth/100)*100);
+}
+function ensurePlayer(p){
+  if(!p.agent)p.agent=['CAA Rugby','Ovalie Conseil','XV Management','North-South Sports','Elite Rugby Partners'][(p.id||'x').length%5];
+  if(!p.role)p.role=(p.ca||0)>=86?'Cadre':(p.ca||0)>=78?'Rotation':'Développement';
+  if(p.releaseClause===undefined)p.releaseClause=0;
+  return p;
+}
+function initManagement(){
+  if(!state.save)return;
+  const s=state.save;
+  s.mgmt=s.mgmt||{};const m=s.mgmt;
+  m.version=V;m.shortlist=m.shortlist||[];m.listed=m.listed||{};m.loanListed=m.loanListed||{};m.incoming=m.incoming||[];m.history=m.history||[];m.freeAgents=m.freeAgents||[];m.loans=m.loans||[];m.negotiations=m.negotiations||{};m.marketTab=m.marketTab||'market';m.query=m.query||'';m.pos=m.pos||'ALL';m.comp=m.comp||'ALL';m.sort=m.sort||'value';m.processedRounds=m.processedRounds||[];
+  s.clubs.forEach(c=>{
+    c.players.forEach(ensurePlayer);
+    if(c.transferBudget==null){const factor=c.comp==='top14'?.055:c.comp==='prod2'?.05:.04;c.transferBudget=roundK(Math.max(180000,(c.cash||0)*.55+c.budget*factor));}
+    if(c.wageBudget==null)c.wageBudget=wageBudget(c);
+  });
+  weeklyManagement();
+}
+function logDeal(type,text,amount=0,extra={}){const m=state.save.mgmt;m.history.unshift({id:'h'+Date.now()+Math.random(),round:state.save.round,date:gameDate().toISOString().slice(0,10),type,text,amount,...extra});m.history=m.history.slice(0,120)}
+function notify(title,body,type='info'){state.save.inbox.push({title,body,type});}
+function currentClub(){return userClub()}
+function externalPlayer(playerId,clubId){const c=clubBy(clubId);return c?{club:c,p:c.players.find(x=>x.id===playerId)}:null}
+function shortlistToggle(id){initManagement();const a=state.save.mgmt.shortlist,i=a.indexOf(id);i>=0?a.splice(i,1):a.push(id);saveLocal();render()}
+function setMgmtTab(t){initManagement();state.save.mgmt.marketTab=t;saveLocal();render()}
+function setMarketQuery(v){state.save.mgmt.query=v;render()}
+function setMarketPos(v){state.save.mgmt.pos=v;render()}
+function setMarketComp(v){state.save.mgmt.comp=v;render()}
+function setMarketSort(v){state.save.mgmt.sort=v;render()}
+function modal(html){document.querySelectorAll('.mgmt-modal').forEach(x=>x.remove());document.body.insertAdjacentHTML('beforeend',`<div class="mgmt-modal" onclick="if(event.target===this)this.remove()"><div class="mgmt-dialog">${html}</div></div>`)}
+function closeMgmtModal(){document.querySelectorAll('.mgmt-modal').forEach(x=>x.remove())}
+function budgetCheck(fee,bonus,annualSalary,oldAnnual=0){const c=currentClub();if(fee+bonus>(c.transferBudget||0))return `Budget transferts insuffisant (${money(c.transferBudget)} disponible).`;if(payroll(c)-oldAnnual+annualSalary>wageBudget(c))return `Masse salariale dépassée (${money(wageRoom(c)+oldAnnual)} de marge).`;return ''}
+function openTransfer(clubId,playerId,stage='club'){
+  initManagement();const ex=externalPlayer(playerId,clubId);if(!ex?.p)return toast('Joueur introuvable');const {club:seller,p}=ex,target=currentClub(),m=state.save.mgmt,ask=askPrice(p,seller),dem=salaryDemand(p,target),neg=m.negotiations[p.id]||{};
+  m.negotiations[p.id]={...neg,clubId,playerId,ask,demand:dem,stage:neg.stage||stage,createdRound:neg.createdRound||state.save.round};
+  const free=(p.contract||9999)<=seasonEndYear()&&gameDate().getMonth()>=0&&gameDate().getMonth()<=5;
+  const fee=free?0:(neg.counterFee||ask);
+  modal(`<div class="mgmt-modal-head"><div><span class="mgmt-eyebrow">NÉGOCIATION</span><h2>${E(p.first)} ${E(p.last)}</h2><p>${E(seller.name)} · ${p.pos} · ${p.age} ans · Niv. ${p.ca} / Pot. ${p.potential}</p></div><button onclick="closeMgmtModal()">✕</button></div>
+  <div class="mgmt-player-summary"><div><small>Valeur estimée</small><b>${money(marketValue(p))}</b></div><div><small>Contrat</small><b>${p.contract}</b></div><div><small>Salaire actuel</small><b>${money(p.salary)}/m</b></div><div><small>Agent</small><b>${E(p.agent)}</b></div></div>
+  <div class="mgmt-stepper"><span class="on">1 CLUB</span><i></i><span class="${neg.stage==='contract'?'on':''}">2 JOUEUR</span><i></i><span>3 SIGNATURE</span></div>
+  ${neg.stage==='contract'?contractNegotiationHtml(p,seller,neg):clubNegotiationHtml(p,seller,fee,ask,free)}
+  <div class="mgmt-note">Budget transferts : <b>${money(target.transferBudget)}</b> · Marge salariale : <b>${money(wageRoom(target))}</b></div>`);
+}
+function clubNegotiationHtml(p,seller,fee,ask,free){
+  if(free)return `<div class="mgmt-callout good"><b>Fin de contrat / pré-contrat</b><span>Aucune indemnité de transfert n'est demandée. Tu peux négocier directement avec le joueur.</span></div><button class="btn" onclick="skipToContract('${seller.id}','${p.id}')">Parler à l’agent</button>`;
+  const clause=p.releaseClause||0;
+  return `<div class="mgmt-grid2"><label>Indemnité proposée<input id="offer-fee" type="number" min="0" step="10000" value="${fee}"></label><label>Prix demandé<input value="${ask}" disabled></label></div>
+  ${clause?`<div class="mgmt-callout"><b>Clause de sortie : ${money(clause)}</b><span>En payant la clause, le club ne peut pas bloquer la négociation avec le joueur.</span></div>`:''}
+  <div class="mgmt-actions"><button class="btn" onclick="submitClubOffer('${seller.id}','${p.id}')">Envoyer l’offre</button>${clause?`<button class="btn secondary" onclick="triggerClause('${seller.id}','${p.id}',${clause})">Payer la clause</button>`:''}<button class="btn ghost" onclick="openLoan('${seller.id}','${p.id}')">Demander un prêt</button></div>`;
+}
+function skipToCon
