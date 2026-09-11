@@ -1,0 +1,51 @@
+/* Rugby Legacy v1.5 — living club: staff, scouting, academy, training, medical, board, progression, seasons */
+(()=>{
+'use strict';
+const V='1.5.0';
+if(typeof RL_DATA!=='undefined') RL_DATA.version=V;
+if(typeof DB!=='undefined') DB.version=V;
+const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
+const euro=n=>typeof fmt==='function'?fmt(Math.round(n||0)):Math.round(n||0).toLocaleString('fr-FR')+' €';
+const X=s=>typeof esc==='function'?esc(String(s??'')):String(s??'');
+const hash=s=>{let h=2166136261;for(const ch of String(s||'')){h^=ch.charCodeAt(0);h=Math.imul(h,16777619)}return h>>>0};
+const pick=(a,s)=>a[hash(s)%a.length];
+const roleLabels={head:'Entraîneur principal',forwards:'Entraîneur des avants',backs:'Entraîneur des trois-quarts',skills:'Technique individuelle',fitness:'Préparateur physique',physio:'Kinésithérapeute',doctor:'Médecin',scout:'Responsable recrutement',academy:'Directeur de la formation'};
+const STAFF_FIRST=['Antoine','Baptiste','Julien','Nicolas','Thomas','Romain','Pierre','Alexandre','Mathieu','François','Marc','David','Stéphane','Laurent','Olivier','Sébastien','Hugo','Louis','Arthur','Clément'];
+const STAFF_LAST=['Marin','Delcourt','Roussel','Verdier','Lacombe','Bastide','Giraud','Tessier','Delaunay','Picard','Fournier','Marty','Vernet','Aubert','Valette','Carrère','Bonnet','Pradier','Lavigne','Perrin'];
+const YOUTH_FIRST=['Léo','Noé','Jules','Mathis','Théo','Gabriel','Lucas','Hugo','Louis','Eliott','Maël','Nathan','Paul','Arthur','Maxence','Baptiste'];
+const YOUTH_LAST=['Borie','Vallier','Ferrand','Lacombe','Carrel','Montel','Aubert','Tessier','Delmas','Marceau','Roussel','Vernet','Giraud','Picard','Lavigne','Perrier'];
+const POSITIONS=['PIL','TAL','2L','3L','9','10','C','AIL','AR'];
+const TRAINING={
+ 'Équilibré':['endurance','passe','plaquage'], 'Physique':['puissance','endurance'], 'Défense':['plaquage','ruck','decision'],
+ 'Conquête':['melee','touche','ruck','puissance'], 'Attaque':['passe','vision','finition','reception'], 'Jeu au pied':['jeuPied','vision','reception'],
+ 'Vitesse':['vitesse','endurance'], 'Récupération':[]
+};
+const INJURIES=[['Contusion',1,2],['Entorse cheville',2,4],['Lésion musculaire',2,5],['Épaule',3,6],['Genou',4,8],['Commotion',1,3],['Ischio-jambiers',2,5],['Mollet',1,4]];
+function seasonEndYear(){const y=parseInt((state.save?.date||'2026-08-24').slice(0,4),10)||2026;return y+1}
+function maxRound(){return Math.max(0,...(state.save?.schedule||[]).map(x=>x.round||0))}
+function avg(a,fn=x=>x){return a.length?a.reduce((s,x)=>s+fn(x),0)/a.length:0}
+function playerPayroll(c){return (c?.players||[]).reduce((s,p)=>s+(p.salary||0)*12,0)}
+function staffPayroll(){const s=state.save?.ops?.staff||{};return Object.values(s).reduce((n,x)=>n+(x?.salary||0)*12,0)}
+function staffQ(role){return state.save?.ops?.staff?.[role]?.quality||55}
+function facility(key){const c=userClub(),o=state.save.ops;return key==='training'?c.facilities:key==='academy'?c.academy:(o.facilities[key]||5)}
+function makeStaff(role,i,base){const q=clamp(Math.round(base-10+(hash(role+i+base)%26)),40,94),salary=Math.round((1800+q*q*1.3)/100)*100;return{id:`st-${role}-${i}-${hash(role+i)}`,first:pick(STAFF_FIRST,role+i+'f'),last:pick(STAFF_LAST,role+i+'l'),role,quality:q,salary,contract:seasonEndYear()+1+(i%3),specialty:role==='scout'?['France','Jeunes','International'][i%3]:role==='fitness'?['Endurance','Puissance','Prévention'][i%3]:role==='academy'?['Détection','Développement','Technique'][i%3]:'Performance'} }
+function createStaffSet(c){const base=Math.round(c.strength*.72+c.facilities*2.2);const out={};Object.keys(roleLabels).forEach((r,i)=>out[r]=makeStaff(r,i,base));return out}
+function createCandidates(c){const base=Math.round(c.strength*.75+5),arr=[];Object.keys(roleLabels).forEach((r,ri)=>{for(let i=0;i<4;i++)arr.push(makeStaff(r,20+ri*7+i,base+(i-1)*5))});return arr}
+function makeYouth(c,i,year=seasonEndYear()){
+ const seed=`${c.id}-${year}-${i}-academy`,academy=facility('academy'),dir=staffQ('academy'),age=16+(hash(seed+'age')%4),pos=POSITIONS[hash(seed+'pos')%POSITIONS.length];
+ const ca=clamp(Math.round(38+academy*2.2+dir*.08+(hash(seed+'ca')%12)),42,72),pot=clamp(ca+12+academy+(hash(seed+'pot')%15),64,96);
+ const b=pos==='PIL'?[178,192,103,128]:pos==='2L'?[193,207,101,122]:pos==='3L'?[183,198,91,112]:pos==='AIL'?[173,190,74,95]:[176,195,78,105];
+ return{id:`${c.id}-academy-${year}-${i}`,first:pick(YOUTH_FIRST,seed+'f'),last:pick(YOUTH_LAST,seed+'l'),pos,age,nat:'France',height:b[0]+hash(seed+'h')%(b[1]-b[0]+1),weight:b[2]+hash(seed+'w')%(b[3]-b[2]+1),ca,potential:pot,fitness:96,morale:82,form:7,attrs:{vitesse:clamp(Math.round(ca/6)+(hash(seed+'1')%5),6,19),puissance:clamp(Math.round(ca/6)+(hash(seed+'2')%5),6,19),endurance:clamp(Math.round(ca/6)+(hash(seed+'3')%5),6,19),plaquage:clamp(Math.round(ca/6)+(hash(seed+'4')%5),6,19),passe:clamp(Math.round(ca/6)+(hash(seed+'5')%5),6,19),jeuPied:clamp(Math.round(ca/7)+(hash(seed+'6')%5),4,18),ruck:clamp(Math.round(ca/6)+(hash(seed+'7')%5),5,19),touche:clamp(Math.round(ca/7)+(hash(seed+'8')%5),4,19),melee:clamp(Math.round(ca/7)+(hash(seed+'9')%5),4,19),vision:clamp(Math.round(ca/6)+(hash(seed+'10')%5),5,19),decision:clamp(Math.round(ca/6)+(hash(seed+'11')%5),5,19),leadership:clamp(Math.round(ca/7)+(hash(seed+'12')%5),4,18),finition:clamp(Math.round(ca/6)+(hash(seed+'13')%5),5,19),reception:clamp(Math.round(ca/6)+(hash(seed+'14')%5),5,19)},academy:true,devProgress:0}
+}
+function academyIntake(c,count=8){const y=seasonEndYear(),arr=[];for(let i=0;i<count;i++)arr.push(makeYouth(c,i+state.save.ops.academy.intakeNo*20,y));state.save.ops.academy.intakeNo++;return arr}
+function initOps(){
+ if(!state.save)return;const c=userClub();state.save.ops=state.save.ops||{};const o=state.save.ops;o.version=V;o.tab=o.tab||'overview';o.staff=o.staff||createStaffSet(c);o.staffCandidates=o.staffCandidates||createCandidates(c);o.facilities=o.facilities||{medical:Math.max(3,Math.round((c.facilities+c.academy)/2)),scouting:Math.max(3,Math.round((c.facilities+c.academy)/2))};o.training=o.training||{focus:state.save.training||'Équilibré',intensity:'Standard',recovery:1,individual:{}};o.medical=o.medical||{injuries:[],history:[]};o.scouting=o.scouting||{missions:[],reports:[],missionNo:1};o.academy=o.academy||{players:[],intakeNo:1,promoted:0,released:0};if(!o.academy.players.length)o.academy.players=academyIntake(c,8);o.board=o.board||{confidence:68,history:[],warnings:0};o.financeLedger=o.financeLedger||[];o.development=o.development||[];o.processedRounds=o.processedRounds||[];o.seasons=o.seasons||[{year:seasonEndYear(),club:c.id,comp:c.comp}];
+ c.players.forEach(p=>{if(p.devProgress==null)p.devProgress=0;if(p.seasonStarts==null)p.seasonStarts=0;if(p.seasonApps==null)p.seasonApps=0;if(!p.role)p.role=p.ca>=86?'Cadre':p.ca>=77?'Rotation':'Développement';});
+}
+function setOpsTab(t){initOps();state.save.ops.tab=t;saveLocal();render()}
+function trainingBoost(){return (staffQ('head')+staffQ('fitness')+staffQ('skills'))/300}
+function medBoost(){return (staffQ('doctor')+staffQ('physio')+facility('medical')*8)/280}
+function academyBoost(){return (staffQ('academy')+facility('academy')*9)/190}
+function scoutBoost(){return (staffQ('scout')+facility('scouting')*9)/190}
+function available(p){return !p.injury||p.injury.weeks<=0}
+function repairLineup(){
