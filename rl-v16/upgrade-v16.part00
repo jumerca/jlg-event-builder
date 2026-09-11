@@ -1,0 +1,42 @@
+/* Rugby Legacy v1.6 — living world: competitions, AI clubs, career stats, regulations, news */
+(()=>{
+'use strict';
+const V='1.6.0';
+if(typeof RL_DATA!=='undefined') RL_DATA.version=V;
+if(typeof DB!=='undefined') DB.version=V;
+const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
+const H=s=>{let h=2166136261;for(const c of String(s||'')){h^=c.charCodeAt(0);h=Math.imul(h,16777619)}return h>>>0};
+const X=s=>typeof esc==='function'?esc(String(s??'')):String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
+const euro=n=>typeof fmt==='function'?fmt(Math.round(n||0)):Math.round(n||0).toLocaleString('fr-FR')+' €';
+const POS=['PIL','TAL','2L','3L','9','10','C','AIL','AR'];
+const COACH_FIRST=['Julien','Antoine','Laurent','Pierre','Sébastien','Marc','Thomas','Nicolas','Romain','David','Mathieu','François'];
+const COACH_LAST=['Delaunay','Vernet','Roussel','Lacombe','Aubert','Ferrand','Giraud','Tessier','Borie','Marty','Perrin','Valette'];
+function year16(){const y=parseInt((state.save?.date||'2026-08-24').slice(0,4),10)||2026;return y+1}
+function seasonKey(){return `${year16()-1}-${String(year16()).slice(-2)}`}
+function club16(id){return state.save?.clubs?.find(c=>c.id===id)}
+function user16(){return userClub()}
+function avg16(a,fn=x=>x){return a.length?a.reduce((s,x)=>s+fn(x),0)/a.length:0}
+function salaryCap16(year=year16()){if(year<=2027)return 11000000;if(year===2028)return 11100000;if(year===2029)return 11200000;return 11300000}
+function isJiff(p){if(p.jiff!==undefined)return !!p.jiff;if(p.academy||p.nat==='France')p.jiff=true;else p.jiff=(H((p.id||p.last)+'jiff')%100)<18;p.jiffSource=p.jiff?(p.nat==='France'?'Formation France':'Formation assimilée'):'Non-JIFF';return p.jiff}
+function ensureStats(p){p.stats=p.stats||{career:{apps:0,starts:0,mins:0,tries:0,points:0,conv:0,pens:0,drops:0,yellow:0,red:0,wins:0,losses:0,tackles:0,metres:0},seasons:{}};const k=seasonKey();p.stats.seasons[k]=p.stats.seasons[k]||{apps:0,starts:0,mins:0,tries:0,points:0,conv:0,pens:0,drops:0,yellow:0,red:0,wins:0,losses:0,tackles:0,metres:0};return p.stats.seasons[k]}
+function addStat(p,key,n=1){const s=ensureStats(p);s[key]=(s[key]||0)+n;p.stats.career[key]=(p.stats.career[key]||0)+n}
+function emptyRow(c){return{clubId:c.id,p:0,w:0,d:0,l:0,pf:0,pa:0,pts:0,bonus:0}}
+function makeLeagueSchedule(ids){
+ let arr=[...ids];if(arr.length%2)arr.push(null);const n=arr.length,half=[];for(let r=0;r<n-1;r++){const games=[];for(let i=0;i<n/2;i++){const a=arr[i],b=arr[n-1-i];if(a&&b)games.push({home:r%2?a:b,away:r%2?b:a})}half.push(games);arr=[arr[0],arr[n-1],...arr.slice(1,n-1)]}
+ return [...half,...half.map(g=>g.map(x=>({home:x.away,away:x.home})))].map((games,i)=>({round:i+1,games}))
+}
+function makeWorldCompetition(comp){const clubs=state.save.clubs.filter(c=>c.comp===comp);return{comp,season:seasonKey(),round:0,table:clubs.map(emptyRow),schedule:makeLeagueSchedule(clubs.map(c=>c.id)),postseason:null}}
+function aiProfile(c){if(c.ai)return c.ai;const styles=['Ambitieux','Formateur','Prudent','Marchand','Stable'];const style=styles[H(c.id+'style')%styles.length];c.ai={style,coach:`${COACH_FIRST[H(c.id+'cf')%COACH_FIRST.length]} ${COACH_LAST[H(c.id+'cl')%COACH_LAST.length]}`,coachRating:clamp(Math.round(c.strength*.82+(H(c.id+'cq')%17)),55,92),pressure:25,transfers:0,academyBias:style==='Formateur'?.8:.45};return c.ai}
+function news16(type,title,body,importance=1,extra={}){const w=state.save.world;w.news.unshift({id:'n'+Date.now()+Math.random(),round:state.save.round,season:seasonKey(),date:state.save.date||'',type,title,body,importance,...extra});w.news=w.news.slice(0,240)}
+function initWorld(){
+ if(!state.save)return;const s=state.save;s.world=s.world||{};const w=s.world;w.version=V;w.section=w.section||'clubhouse';w.news=w.news||[];w.archive=w.archive||[];w.records=w.records||{champions:{top14:[],prod2:[],nationale:[]},transfers:[],awards:[]};w.processedRounds=w.processedRounds||[];w.comps=w.comps||{};w.reg=w.reg||{jiffSheets:[],nonJiffRef:[],warnings:[],lastSeasonAverage:null};w.aiMoves=w.aiMoves||[];w.clubHistory=w.clubHistory||{};w.managers=w.managers||{};
+ s.clubs.forEach(c=>{aiProfile(c);c.players.forEach(p=>{isJiff(p);ensureStats(p)});w.clubHistory[c.id]=w.clubHistory[c.id]||[]});
+ ['top14','prod2','nationale'].forEach(k=>{if(!w.comps[k]||w.comps[k].season!==seasonKey())w.comps[k]=makeWorldCompetition(k)});
+ const uc=user16();const non=(uc?.players||[]).filter(p=>!isJiff(p)).sort((a,b)=>(b.ca||0)-(a.ca||0));w.reg.nonJiffRef=w.reg.nonJiffRef.filter(id=>non.some(p=>p.id===id));for(const p of non){if(w.reg.nonJiffRef.length>=13)break;if(!w.reg.nonJiffRef.includes(p.id))w.reg.nonJiffRef.push(p.id)}
+ if(DB?.comps?.top14)DB.comps.top14.salaryCap=salaryCap16();
+}
+function tableSort(a,b){return b.pts-a.pts||((b.pf-b.pa)-(a.pf-a.pa))||b.pf-a.pf}
+function table16(comp){initWorld();if(state.save.competition===comp&&state.save.table?.length){return state.save.table.map(r=>({...r,p:r.p??(r.w+r.d+r.l)})).sort(tableSort)}return [...state.save.world.comps[comp].table].sort(tableSort)}
+function rank16(comp,id){return table16(comp).findIndex(r=>r.clubId===id)+1}
+function scorePair(home,away,seed){const hs=Math.max(6,Math.round(18+(home.strength-away.strength)*.65+(H(seed+'h')%25)));const as=Math.max(6,Math.round(17+(away.strength-home.strength)*.55+(H(seed+'a')%23)));return[hs,as]}
+function applyResult(rowH,rowA,hs,as){rowH.p++;rowA.p++;rowH.pf+=hs;rowH.pa+=as;rowA.pf+=as;rowA.pa+=hs;if(hs>as){rowH.w++;rowA.l++;rowH.pts+=4;if(as>=hs-7){rowA.pts++;rowA.bonus++}}else if(as>hs){rowA.w++;rowH.l++;rowA.pts+=4;if(hs>=as-7){rowH.pts++;rowH.bonus++}}else{rowH.d++;rowA.d++;rowH.pts+=2;rowA.pts+=2}if(hs>=30){rowH.pts++;rowH.bonus++}if(as>=30){rowA.pts++;rowA.bonus++}}
