@@ -1,0 +1,31 @@
+{let x=bx+(home?-.8:.8),y=edge+sg*(6+i*4.25);if((i===2||i===4)&&p>.34&&p<.74)y+=sg*Math.sin((p-.34)/.40*Math.PI)*.5;if(i===3&&p>.32&&p<.75)y+=sg*Math.sin((p-.32)/.43*Math.PI)*2.8;return[x,y]}
+ if(i===8){let x=bx-d*5.5,y=edge+sg*18;if(att&&p>.78)x+=d*(p-.78)*16;return[x,y]}
+ return[bx-d*(8+(i-9)*3.8),14+(i-9)*14]
+}
+function ruckShape(home,i,e,p){const bx=e?.x??50,by=e?.y??50,d=dir(home),att=e?.home===home;if(i<6){const lane=i%2?1:-1,depth=Math.floor(i/2);let arrive=smooth(clamp((p-.06-depth*.035)/.54,0,1));let tx=bx-d*(1.2+depth*1.65),ty=by+lane*(1.7+depth*.65);let sx=tx-d*(8+depth*1.4),sy=ty+lane*5;let x=lerp(sx,tx,arrive),y=lerp(sy,ty,arrive);return[x,y]}
+ if(i<8)return[bx-d*(7+(i-6)*3),by+(i===6?-8:8)];
+ if(i===8){let x=bx-d*5.2,y=by+2.6;if(att&&p>.82)x+=d*(p-.82)*24;return[x,y]}
+ return[bx-d*(9+(i-9)*4.1),8+(i-9)*15.4]
+}
+function actionShape(home,i,e,p){const t=norm(e?.type),att=e?.home===home,d=dir(home),bx=e?.x??50,by=e?.y??50;let q=t.includes('MELEE')?scrumShape(home,i,e,p):t.includes('TOUCHE')?lineoutShape(home,i,e,p):(t.includes('RUCK')||t.includes('TURNOVER'))?ruckShape(home,i,e,p):lineFormation(home,i,e);let [x,y]=q;
+ if(t.includes('PASSE')&&att){const chain=[8,9,11,12,13,10],seg=Math.min(chain.length-2,Math.floor(p*(chain.length-1)));const a=chain[seg],b=chain[seg+1],u=(p*(chain.length-1))-seg;if(i===a||i===b){x+=d*(3.5*smooth(u));y+=(i===b?1:-1)*1.2}else if(i>8){x+=d*p*6}}
+ if(t.includes('PERCUSSION')){const ci=carrierIndex(e),di=att?12:11;if(att&&i===ci){x=bx-d*(10*(1-smooth(Math.min(p/.50,1))));y=by;if(p>.57)x+=d*(p-.57)*1.2}if(!att&&i===di){x=bx+d*(9*(1-smooth(Math.min(p/.50,1))));y=by+.8}if(p>.68&&((att&&i===ci)||(!att&&i===di))){x=bx+(att?-d:d)*(1-p)*1.2;y=by}}
+ if((t.includes('PIED')||t.includes('DROP'))&&att){if(i===9)x=bx-d*(5-3.2*Math.min(p/.38,1));else if(i>8)x+=d*clamp((p-.45)/.55,0,1)*7}
+ if(t.includes('ESSAI')&&att&&i===13){x=bx-d*(11*(1-smooth(Math.min(p/.76,1))));y=by}
+ return[clamp(x,0,100),clamp(y,1,99)]
+}
+function canvasInfo(){const c=document.getElementById('prm13-canvas');if(!c)return null;const r=c.getBoundingClientRect(),d=Math.min(devicePixelRatio||1,state.prm13Quality==='cinema'?2.15:1.35),w=Math.max(360,r.width),h=Math.max(250,r.height);if(c.width!==Math.round(w*d)||c.height!==Math.round(h*d)){c.width=Math.round(w*d);c.height=Math.round(h*d)}const ctx=c.getContext('2d');ctx.setTransform(d,0,0,d,0,0);return{c,ctx,w,h}}
+function cameraTarget(e,p){const t=norm(e?.type),ne=nextEvent();let x=e?.x??50,y=e?.y??50,z=1.02;const look=(state.prm13Camera==='broadcast')?.16:.05;if(ne){x=lerp(x,ne.x??x,look);y=lerp(y,ne.y??y,look)}if(t.includes('RUCK')||t.includes('PERCUSSION'))z=1.18;if(t.includes('MELEE'))z=1.15;if(t.includes('TOUCHE')){y=(e?.y??50)<50?23:77;z=1.12}if(t.includes('PIED'))z=.92;if(t.includes('ESSAI'))z=1.20;if(state.prm13Camera==='wide')z=.83;if(state.prm13Camera==='touch')z=1.24;if(state.prm13Camera==='follow')z=1.27;return{x,y,z}}
+function cameraStep(e,p){const t=cameraTarget(e,p),spring=.017,damp=.86;cam.vx=(cam.vx+(t.x-cam.x)*spring)*damp;cam.vy=(cam.vy+(t.y-cam.y)*spring)*damp;cam.vz=(cam.vz+(t.z-cam.z)*spring)*damp;cam.x+=cam.vx;cam.y+=cam.vy;cam.z+=cam.vz}
+function proj(px,py,w,h){const focus=(cam.x-50)*(state.prm13Camera==='follow'?.29:.18),x=clamp(px-focus,-12,112)/100,y=py/100;let topY=h*.175,botY=h*.95,tl=w*.12,tr=w*.88,bl=w*.002,br=w*.998;if(state.prm13Camera==='wide'){topY=h*.085;tl=w*.055;tr=w*.945}if(state.prm13Camera==='touch'){topY=h*.25;tl=w*.22;tr=w*.78}const yy=lerp(topY,botY,y),l=lerp(tl,bl,y),r=lerp(tr,br,y),cx=w/2;return{x:cx+(lerp(l,r,x)-cx)*cam.z,y:yy,s:lerp(.42,1.38,y)*cam.z}}
+function line(ctx,a,b,col,lw=1,d=[]){ctx.save();ctx.strokeStyle=col;ctx.lineWidth=lw;ctx.setLineDash(d);ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();ctx.restore()}
+function poly(ctx,pts,fill,stroke=null,lw=1){ctx.beginPath();pts.forEach((q,i)=>i?ctx.lineTo(q.x,q.y):ctx.moveTo(q.x,q.y));ctx.closePath();if(fill){ctx.fillStyle=fill;ctx.fill()}if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=lw;ctx.stroke()}}
+function stadium(ctx,w,h,m){ctx.clearRect(0,0,w,h);let sky=ctx.createLinearGradient(0,0,0,h*.29);sky.addColorStop(0,'#0a0f0d');sky.addColorStop(1,'#333936');ctx.fillStyle=sky;ctx.fillRect(0,0,w,h*.30);
+ ctx.fillStyle='#141916';ctx.fillRect(0,0,w,h*.035);ctx.fillStyle='#2b302d';ctx.fillRect(0,h*.03,w,h*.125);ctx.fillStyle='#101411';ctx.fillRect(0,h*.155,w,h*.052);for(let tier=0;tier<2;tier++){let yo=8+tier*24;for(let y=0;y<6;y++)for(let x=0;x<w;x+=5){let k=(x/5+y+tier*3)|0;if(k%6!==0){ctx.fillStyle=['#c8c6bc','#777f78','#d2b15b','#aeb4ae','#6f756f'][k%5];ctx.fillRect(x+(y%2)*2,yo+y*3,2,2)}}}
+ ctx.fillStyle='#080b09';ctx.fillRect(0,h*.192,w,h*.026);for(let x=0;x<w;x+=105){ctx.fillStyle=(x/105)%2?'#f0cf68':'#e8eae5';ctx.font='800 8px Arial';ctx.fillText((x/105)%2?'RUGBY LEGACY':'PRO MATCH',x+9,h*.208)}
+ const a=proj(0,0,w,h),b=proj(100,0,w,h),c=proj(100,100,w,h),d=proj(0,100,w,h);let g=ctx.createLinearGradient(0,a.y,0,d.y);g.addColorStop(0,'#4b813e');g.addColorStop(.48,'#579749');g.addColorStop(1,'#34722e');poly(ctx,[a,b,c,d],g,'rgba(255,255,255,.88)',1.1);
+ for(let i=0;i<10;i+=2)poly(ctx,[proj(i*10,0,w,h),proj((i+1)*10,0,w,h),proj((i+1)*10,100,w,h),proj(i*10,100,w,h)],'rgba(255,255,255,.022)');
+ [0,5,22,40,50,60,78,95,100].forEach(v=>line(ctx,proj(v,0,w,h),proj(v,100,w,h),'rgba(255,255,255,.72)',v===50?1.4:.72));[5,10,15,20,25,30,35,40,45,55,60,65,70,75,80,85,90,95].forEach(y=>line(ctx,proj(48.7,y,w,h),proj(51.3,y,w,h),'rgba(255,255,255,.45)',.65));
+ const seed=hash((m?.homeId||'h')+(m?.awayId||'a'));ctx.fillStyle='rgba(85,58,32,.10)';for(let n=0;n<24;n++){let px=(seed*(n+3)*17)%94+3,py=(seed*(n+7)*29)%90+5,q=proj(px,py,w,h);ctx.beginPath();ctx.ellipse(q.x,q.y,(3+(n%4))*q.s,(1.1+(n%3)*.4)*q.s,0,0,Math.PI*2);ctx.fill()}
+ posts(ctx,3,50,w,h);posts(ctx,97,50,w,h);benchArea(ctx,w,h);}
+function posts(ctx,x,y,w,h){const q=proj(x,y,w,h),s=q.s;ctx.strokeStyle='#f5f1e6';ctx.lineWidth=Math.max(1,1.3*s);ctx.beginPath();ctx.moveTo(q.x-5*s,q.y);ctx.lineTo(q.x-5*s,q.y-36*s);ctx.moveTo(q.x+5*s,q.y);ctx.lineTo(q.x+5*s,q.y-36*s);ctx.moveTo(q.x-5*s,q.y-23*s);ctx.lineTo(q.x+5*s,q.y-23*s);ctx.stroke();ctx.fillStyle='#1c2d25';ctx.fillRect(q.x-7*s,q.y-6*s,4*s,7*s);ctx.fillRect(q.x+3*s,q.y-6*s,4*s,7*s)}
