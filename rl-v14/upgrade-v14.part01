@@ -1,0 +1,45 @@
+tract(clubId,pid){const n=state.save.mgmt.negotiations[pid];n.stage='contract';n.acceptedFee=0;saveLocal();openTransfer(clubId,pid,'contract')}
+function triggerClause(clubId,pid,clause){const c=currentClub();if(clause>c.transferBudget)return toast('Budget transferts insuffisant');const n=state.save.mgmt.negotiations[pid];n.stage='contract';n.acceptedFee=clause;n.clubResponse='Clause activée';saveLocal();openTransfer(clubId,pid,'contract')}
+function submitClubOffer(clubId,pid){
+  const ex=externalPlayer(pid,clubId);if(!ex)return;const {club:seller,p}=ex,n=state.save.mgmt.negotiations[pid],offer=Math.max(0,+document.getElementById('offer-fee').value||0),ask=n.ask||askPrice(p,seller),listed=!!state.save.mgmt.listed[p.id];
+  const threshold=ask*(listed?.86:.92);
+  n.lastFee=offer;n.attempts=(n.attempts||0)+1;
+  if(offer>=threshold){n.stage='contract';n.acceptedFee=roundK(offer);n.clubResponse='Offre acceptée';saveLocal();openTransfer(clubId,pid,'contract');return}
+  if(offer>=ask*.68){n.counterFee=roundK(Math.max(offer*1.08,ask*.94));n.clubResponse=`Contre-proposition à ${money(n.counterFee)}`;saveLocal();toast(n.clubResponse);openTransfer(clubId,pid);return}
+  n.clubResponse='Offre refusée';if(n.attempts>=3)n.lockedUntil=state.save.round+2;saveLocal();toast('Le club refuse cette offre.');openTransfer(clubId,pid)
+}
+function contractNegotiationHtml(p,seller,n){
+  const dem=n.counterSalary||n.demand||salaryDemand(p,currentClub()),defaultYears=(p.age||25)>=31?2:3,bonus=Math.round(dem*2/100)*100;
+  return `<div class="mgmt-callout good"><b>${n.clubResponse||'Accord avec le club'}</b><span>Indemnité : ${money(n.acceptedFee||0)}. ${E(p.agent)} attend maintenant ton offre contractuelle.</span></div>
+  <div class="mgmt-grid2"><label>Salaire mensuel<input id="contract-salary" type="number" min="500" step="100" value="${dem}"></label><label>Durée<select id="contract-years"><option value="1">1 an</option><option value="2">2 ans</option><option value="3" selected>3 ans</option><option value="4">4 ans</option></select></label><label>Prime à la signature<input id="contract-bonus" type="number" min="0" step="1000" value="${bonus}"></label><label>Clause de sortie<input id="contract-clause" type="number" min="0" step="50000" value="${roundK(marketValue(p)*2.2)}"></label></div>
+  <label class="mgmt-full">Statut promis<select id="contract-role"><option>Cadre</option><option selected>Rotation importante</option><option>Rotation</option><option>Développement</option></select></label>
+  <div class="mgmt-actions"><button class="btn" onclick="submitContractOffer('${seller.id}','${p.id}')">Proposer le contrat</button><button class="btn ghost" onclick="state.save.mgmt.negotiations['${p.id}'].stage='club';saveLocal();openTransfer('${seller.id}','${p.id}')">Retour club</button></div>`;
+}
+function submitContractOffer(clubId,pid){
+  const ex=externalPlayer(pid,clubId);if(!ex)return;const {club:seller,p}=ex,target=currentClub(),n=state.save.mgmt.negotiations[pid];
+  const sal=Math.max(500,+document.getElementById('contract-salary').value||0),yrs=+document.getElementById('contract-years').value||2,bonus=Math.max(0,+document.getElementById('contract-bonus').value||0),clause=Math.max(0,+document.getElementById('contract-clause').value||0),role=document.getElementById('contract-role').value;
+  const demand=n.counterSalary||n.demand||salaryDemand(p,target),fee=n.acceptedFee||0,check=budgetCheck(fee,bonus,sal*12,0);if(check)return toast(check);
+  let score=sal/demand+(bonus>=sal*1.5?.08:0)+(yrs>=3?.05:0)+(role==='Cadre'?.05:role==='Rotation importante'?.02:0);
+  n.contractAttempts=(n.contractAttempts||0)+1;
+  if(score>=.98){finalizeTransfer(seller,p,{fee,salary:sal,years:yrs,bonus,clause,role});return}
+  if(score>=.82){n.counterSalary=Math.round(Math.max(demand,sal*1.08)/100)*100;n.demand=n.counterSalary;saveLocal();toast(`L’agent contre à ${money(n.counterSalary)}/mois.`);openTransfer(clubId,pid,'contract');return}
+  if(n.contractAttempts>=3){delete state.save.mgmt.negotiations[pid];saveLocal();closeMgmtModal();toast('Le joueur met fin aux discussions.');return}
+  n.counterSalary=Math.round(demand*1.04/100)*100;saveLocal();toast('Offre jugée insuffisante.');openTransfer(clubId,pid,'contract')
+}
+function finalizeTransfer(seller,p,o){
+  const target=currentClub(),m=state.save.mgmt,idx=seller.players.findIndex(x=>x.id===p.id);if(idx<0)return;
+  seller.players.splice(idx,1);const np={...p,salary:o.salary,contract:seasonEndYear()+o.years,releaseClause:o.clause||0,role:o.role||p.role,parentClubId:null,loan:null};target.players.push(np);
+  target.transferBudget=Math.max(0,(target.transferBudget||0)-o.fee-o.bonus);target.cash=(target.cash||0)-o.fee-o.bonus;seller.cash=(seller.cash||0)+o.fee;seller.transferBudget=(seller.transferBudget||0)+Math.round(o.fee*.78);
+  delete m.listed[p.id];delete m.loanListed[p.id];delete m.negotiations[p.id];m.shortlist=m.shortlist.filter(id=>id!==p.id);
+  logDeal('transfer',`${np.first} ${np.last} rejoint ${target.name} depuis ${seller.name}`,o.fee,{playerId:np.id,from:seller.id,to:target.id});notify('Transfert conclu',`${np.first} ${np.last} signe jusqu’en ${np.contract}. Indemnité ${money(o.fee)}, salaire ${money(o.salary)}/mois.`,'transfer');saveLocal();closeMgmtModal();toast('Transfert finalisé');render();
+}
+function openLoan(clubId,pid){
+  initManagement();const ex=externalPlayer(pid,clubId);if(!ex)return;const {club:seller,p}=ex;
+  modal(`<div class="mgmt-modal-head"><div><span class="mgmt-eyebrow">PRÊT</span><h2>${E(p.first)} ${E(p.last)}</h2><p>${E(seller.name)} · ${p.pos} · ${p.age} ans</p></div><button onclick="closeMgmtModal()">✕</button></div><div class="mgmt-player-summary"><div><small>Salaire</small><b>${money(p.salary)}/m</b></div><div><small>Contrat</small><b>${p.contract}</b></div><div><small>Niveau</small><b>${p.ca}</b></div><div><small>Potentiel</small><b>${p.potential}</b></div></div><div class="mgmt-grid2"><label>Indemnité de prêt<input id="loan-fee" type="number" min="0" step="5000" value="${roundK(marketValue(p)*.05)}"></label><label>Part du salaire payée<select id="loan-share"><option value="25">25 %</option><option value="50" selected>50 %</option><option value="75">75 %</option><option value="100">100 %</option></select></label><label>Durée<select id="loan-duration"><option value="season" selected>Jusqu’à fin de saison</option><option value="half">6 mois</option></select></label><label>Rôle promis<select id="loan-role"><option>Cadre</option><option selected>Rotation importante</option><option>Rotation</option></select></label></div><div class="mgmt-actions"><button class="btn" onclick="submitLoanOffer('${seller.id}','${p.id}')">Proposer le prêt</button></div>`)
+}
+function submitLoanOffer(clubId,pid){
+  const ex=externalPlayer(pid,clubId);if(!ex)return;const {club:seller,p}=ex,target=currentClub(),fee=+document.getElementById('loan-fee').value||0,share=+document.getElementById('loan-share').value||50,duration=document.getElementById('loan-duration').value,role=document.getElementById('loan-role').value;
+  const costSalary=p.salary*12*(share/100)*(duration==='half'?.5:1),check=budgetCheck(fee,0,costSalary,0);if(check)return toast(check);
+  const depth=seller.players.filter(x=>x.pos===p.pos).length,available=state.save.mgmt.loanListed[p.id]||p.age<=24||depth>=4,score=(available?.28:0)+(share/100)*.25+(fee/(Math.max(30000,marketValue(p)*.08)))*.22+(role==='Cadre'?.18:role==='Rotation importante'?.1:0);
+  if(score<.48)return toast('Le club refuse de prêter ce joueur dans ces conditions.');
+  const idx=seller.players.findIndex(x=>x.id===p.id);seller.players.splice(idx,1);const np={...p,loan:{from:seller.id,to:target.id,wageShare:share,fee,startRound:state.save.round,endRound:duration==='half'?state.save.round+13:999,originalSalary:p.salary},parentClubId:seller.id};target.players.push(np);target.transferBudget-=fee;target.cash-=fee;seller.cash+=fee;state.save.mgmt.loans.push({playerId:p.id,from:seller.id,to:target.i
